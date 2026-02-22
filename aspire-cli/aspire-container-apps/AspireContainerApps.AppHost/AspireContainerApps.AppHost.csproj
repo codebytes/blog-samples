@@ -1,0 +1,20 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.3.0-preview.1.26121.1">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>cb5cf7cb-9da8-4888-886a-054af8dc73e5</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspireContainerApps.ApiService\AspireContainerApps.ApiService.csproj" />
+    <ProjectReference Include="..\AspireContainerApps.Web\AspireContainerApps.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Azure.AppContainers" Version="13.3.0-preview.1.26121.1" />
+  </ItemGroup>
+
+</Project>
