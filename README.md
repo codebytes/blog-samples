@@ -20,7 +20,7 @@ Found an issue or have a suggestion? [Open an issue](https://github.com/codebyte
 
 ## Connect with Chris Ayers
 
-Feel free to connect with Chris Ayers on social media and visit his blog for more information on Azure resiliency and other topics:
+Feel free to connect with Chris Ayers on social media and visit his blog for more information or topics:
 
 - BlueSky: [@chris-ayers.com](https://bsky.app/profile/chris-ayers.com)
 - LinkedIn: [chris-l-ayers](https://linkedin.com/in/chris-l-ayers/)
