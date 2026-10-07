@@ -9,7 +9,9 @@ fi
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 apphost="$root/catalog/Catalog.AppHost/Catalog.AppHost.csproj"
 rm -f "$root/artifacts/compose/review.json"
+node "$root/scripts/require-aspire.mjs"
+cli="${ASPIRE_BIN:-aspire}"
 export Deployment__Target=compose
-bash "$root/scripts/aspire.sh" publish --apphost "$apphost" --list-steps --non-interactive --nologo
-bash "$root/scripts/aspire.sh" publish --apphost "$apphost" --output-path "$root/artifacts/compose" --non-interactive --nologo
+"$cli" publish --apphost "$apphost" --list-steps --non-interactive --nologo
+"$cli" publish --apphost "$apphost" --output-path "$root/artifacts/compose" --non-interactive --nologo
 node "$root/scripts/review-compose.mjs" "$root/artifacts/compose"

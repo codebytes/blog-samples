@@ -7,11 +7,11 @@ commands from `aspire-field-notes/`.
 
 ```bash
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
-bash scripts/aspire.sh start --apphost "$apphost" --isolated --non-interactive
+aspire start --apphost "$apphost" --isolated --non-interactive
 node scripts/smoke.mjs healthy
 
-bash scripts/aspire.sh stop --apphost "$apphost" --non-interactive
-Inventory__FaultEnabled=true bash scripts/aspire.sh start \
+aspire stop --apphost "$apphost" --non-interactive
+Inventory__FaultEnabled=true aspire start \
   --apphost "$apphost" --isolated --non-interactive
 node scripts/smoke.mjs fault
 ```
@@ -35,15 +35,15 @@ fails. These exported files are separate from dashboard persistence.
 To explore manually:
 
 ```bash
-bash scripts/aspire.sh describe --apphost "$apphost" --format Table --non-interactive
-bash scripts/aspire.sh logs api --apphost "$apphost" --tail 40 --non-interactive
-bash scripts/aspire.sh logs inventory --apphost "$apphost" --tail 40 --non-interactive
-bash scripts/aspire.sh otel traces api --apphost "$apphost" --has-error --non-interactive
+aspire describe --apphost "$apphost" --format Table --non-interactive
+aspire logs api --apphost "$apphost" --tail 40 --non-interactive
+aspire logs inventory --apphost "$apphost" --tail 40 --non-interactive
+aspire otel traces api --apphost "$apphost" --has-error --non-interactive
 
 # Assign the printed trace ID to trace_id in your shell before these commands.
 : "${trace_id:?Set trace_id to the trace ID printed by the fault smoke check}" && \
-  bash scripts/aspire.sh otel spans --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive && \
-  bash scripts/aspire.sh otel logs --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
+  aspire otel spans --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive && \
+  aspire otel logs --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
 ```
 
 Keep that guard and both telemetry commands as one `&&` chain. In interactive
@@ -73,8 +73,8 @@ separate from application files under the AppHost's `obj/.aspire/volumes/`.
 ## Recover, then compare
 
 ```bash
-bash scripts/aspire.sh stop --apphost "$apphost" --non-interactive
-Inventory__FaultEnabled=false bash scripts/aspire.sh start \
+aspire stop --apphost "$apphost" --non-interactive
+Inventory__FaultEnabled=false aspire start \
   --apphost "$apphost" --isolated --non-interactive
 node scripts/smoke.mjs recovery
 ```

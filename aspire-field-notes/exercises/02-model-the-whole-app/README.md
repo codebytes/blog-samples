@@ -4,10 +4,10 @@ Use the [shared catalog setup](../../README.md), then:
 
 ```bash
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
-bash scripts/aspire.sh start --apphost "$apphost" --isolated --non-interactive
-bash scripts/aspire.sh wait catalogdb --apphost "$apphost" --status healthy --timeout 120 --non-interactive
-bash scripts/aspire.sh wait api --apphost "$apphost" --status healthy --timeout 120 --non-interactive
-bash scripts/aspire.sh wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire start --apphost "$apphost" --isolated --non-interactive
+aspire wait catalogdb --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire wait api --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
 node scripts/smoke.mjs healthy
 ```
 
@@ -35,7 +35,7 @@ only calls `/api/catalog` and `/api/state`.
 # Demonstrate the fail-fast proxy contract without starting another server.
 node --test tests/scripts.test.mjs
 
-bash scripts/aspire.sh describe --apphost "$apphost" --format Table --non-interactive
+aspire describe --apphost "$apphost" --format Table --non-interactive
 ```
 
 Compare the current API URL with the `API_BASE_URL` environment entry for **web**

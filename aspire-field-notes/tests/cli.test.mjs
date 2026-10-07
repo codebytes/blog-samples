@@ -74,11 +74,49 @@ test("helpers can still be imported from stdin without treating '-' as a file", 
   assert.match(result.stdout, /Imported helpers without running/);
 });
 
-test("the CLI wrapper rejects a mismatched version", async t => {
-  const cli = mockAspire(fixture(t), { "--version": { stdout: "0.0.0\n" } });
-  const result = await run("bash", ["scripts/aspire.sh", "--version"], { ASPIRE_BIN: cli });
+for (const version of ["13.6.1", "13.6.1+build", "13.6.2", "13.7.0-preview.1", "14.0.0"]) {
+  test(`installed CLI ${version} meets the minimum without an exact-version pin`, async t => {
+    const directory = fixture(t);
+    mockAspire(directory, { "--version": { stdout: `${version}\n` } });
+    const result = await run(process.execPath, ["scripts/require-aspire.mjs"], {
+      ASPIRE_BIN: "", PATH: `${directory}:${process.env.PATH}`,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), `Aspire CLI ${version}`);
+  });
+}
+
+for (const version of ["13.5.3", "13.6.0", "13.6.1-preview.1"]) {
+  test(`installed CLI ${version} fails before a terminal smoke starts`, async t => {
+    const cli = mockAspire(fixture(t), { "--version": { stdout: `${version}\n` } });
+    const result = await run(process.execPath, ["scripts/terminal-smoke.mjs"], { ASPIRE_BIN: cli });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Aspire CLI 13\.6\.1 or later is required; found/);
+  });
+}
+
+test("a missing CLI reports the installation prerequisite", async t => {
+  const directory = fixture(t);
+  const result = await run(process.execPath, ["scripts/require-aspire.mjs"], {
+    ASPIRE_BIN: "", PATH: directory,
+  });
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /Aspire CLI 13\.6\.1 is required/);
+  assert.match(result.stderr, /Aspire CLI not found.*13\.6\.1 or later/);
+  assert.match(result.stderr, /https:\/\/aspire\.dev\/get-started\/install-cli\//);
+});
+
+test("an unrecognized version is an explicit error", async t => {
+  const cli = mockAspire(fixture(t), { "--version": { stdout: "unexpected version\n" } });
+  const result = await run(process.execPath, ["scripts/require-aspire.mjs"], { ASPIRE_BIN: cli });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Cannot parse Aspire CLI version/);
+});
+
+test("a failed version command does not pass the prerequisite check", async t => {
+  const cli = mockAspire(fixture(t), { "--version": { status: 1, stdout: "" } });
+  const result = await run(process.execPath, ["scripts/require-aspire.mjs"], { ASPIRE_BIN: cli });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Cannot check Aspire CLI version: exit 1/);
 });
 
 for (const output of ["", { resources: [] }]) {
@@ -220,37 +258,11 @@ for (const scenario of ["expected", "no-computation", "echoed-success"]) {
   });
 }
 
-test("installer rejects altered bytes before extracting or replacing the existing CLI", async t => {
-  const directory = fixture(t);
-  mkdirSync(join(directory, "scripts"));
-  mkdirSync(join(directory, ".tools"));
-  copyFileSync(resolve(root, "scripts/install-cli.sh"), join(directory, "scripts/install-cli.sh"));
-  writeFileSync(join(directory, ".tools/aspire"), "existing CLI");
-  executable(directory, "uname", 'console.log(process.argv[2] === "-s" ? "Darwin" : "arm64");');
-  executable(directory, "curl", `
-    import assert from "node:assert/strict";
-    import { writeFileSync } from "node:fs";
-    const args = process.argv.slice(2);
-    assert.ok(!args.includes("--max-time"));
-    assert.equal(args[args.indexOf("--speed-limit") + 1], "1024");
-    assert.equal(args[args.indexOf("--speed-time") + 1], "60");
-    writeFileSync(args[args.indexOf("-o") + 1], "not the pinned release archive");
-  `);
-  executable(directory, "tar", `throw new Error("Unverified archives must never be extracted.");`);
-  const result = await run("bash", [join(directory, "scripts/install-cli.sh")], {
-    PATH: `${directory}:${process.env.PATH}`,
-  });
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /Aspire release checksum mismatch/);
-  assert.doesNotMatch(result.stderr, /Unverified archives/);
-  assert.equal(readFileSync(join(directory, ".tools/aspire"), "utf8"), "existing CLI");
-});
-
 test("failed publication clears a previous successful review", async t => {
   const directory = fixture(t);
   mkdirSync(join(directory, "scripts"));
   mkdirSync(join(directory, "artifacts/compose"), { recursive: true });
-  for (const script of ["publish.sh", "aspire.sh"]) {
+  for (const script of ["publish.sh", "require-aspire.mjs"]) {
     copyFileSync(resolve(root, "scripts", script), join(directory, "scripts", script));
   }
   const review = join(directory, "artifacts/compose/review.json");

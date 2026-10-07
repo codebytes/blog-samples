@@ -1,6 +1,6 @@
 # Aspire Field Notes: runnable companions
 
-One small catalog app, six exercises, **Aspire 13.6.1**. These samples are separate
+One small catalog app, six exercises, validated with **Aspire 13.6.1**. These samples are separate
 from the older [`aspire-cli`](../aspire-cli/) collection.
 
 | Article | Runnable exercise |
@@ -8,7 +8,7 @@ from the older [`aspire-cli`](../aspire-cli/) collection.
 | 1. Keep the failing run | [A real downstream 503, correlated evidence, and recovery](exercises/01-keep-the-failing-run/) |
 | 2. Model the whole app | [Configuration, readiness, and telemetry in a polyglot graph](exercises/02-model-the-whole-app/) |
 | 3. Terminals and REPLs | [PostgreSQL diagnostics and a bounded Node terminal tape](exercises/03-terminals-and-repls/) |
-| 4. Agents with evidence | [Pinned guidance, explicit AppHost selection, and repeatable checks](exercises/04-agents-with-evidence/) |
+| 4. Agents with evidence | [CLI guidance, explicit AppHost selection, and repeatable checks](exercises/04-agents-with-evidence/) |
 | 5. Portable state and config | [A retained file, fail-fast configuration, and stable credentials](exercises/05-portable-state-and-config/) |
 | 6. Choose your deployment | [Explicit Docker Compose publication and artifact assertions](exercises/06-choose-your-deployment/) |
 
@@ -19,9 +19,11 @@ from the older [`aspire-cli`](../aspire-cli/) collection.
 - Docker with a running Linux container engine and Docker Compose v2 or later
   (`docker compose` plugin). Aspire's
   PostgreSQL integration supplies its own database client; no host `psql` is needed.
-- Bash, `curl`, and `tar` for the Mac/Linux scripts. Windows users can run these
+- Bash for the Mac/Linux helper scripts. Windows users can run these
   commands in a WSL environment with the same prerequisites.
-- Aspire CLI **13.6.1**, matching the pinned AppHost SDK and integrations.
+- An installed **Aspire CLI 13.6.1 or later**, available as `aspire` on `PATH`.
+  See the [official CLI installation instructions](https://aspire.dev/get-started/install-cli/).
+  The AppHost SDK and integration packages remain pinned to 13.6.1.
 
 All commands below run from `aspire-field-notes/`. Ports are discovered, not fixed.
 The sample uses local HTTP and deliberately has no authentication. Do not expose
@@ -30,9 +32,8 @@ the dashboard, REPL, or application to untrusted users.
 ## Quick start
 
 ```bash
-# Optional when 13.6.1 is already installed. Verify against the platform SHA-512
-# pinned in the script, then install into ignored .tools/.
-bash scripts/install-cli.sh
+# Confirm the installed CLI is 13.6.1 or later.
+aspire --version
 
 # Generate a local secret once, or preserve the existing secret without printing it.
 node scripts/init-secret.mjs
@@ -40,28 +41,25 @@ node scripts/init-secret.mjs
 # Stop this sample's AppHosts before building their assemblies.
 bash scripts/check.sh
 
-bash scripts/aspire.sh start \
+aspire start \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
   --isolated --non-interactive
 
 node scripts/smoke.mjs healthy
 ```
 
-`scripts/aspire.sh` rejects a mismatched CLI. It uses `.tools/aspire`, then an
-installed `aspire`, or an explicit executable path in `ASPIRE_BIN`.
-The installer pins the reviewed 13.6.1 hashes for macOS/Linux, ARM64/x64 and aborts
-before extraction on a mismatch. This is an integrity check against a committed
-reference, not a separate publisher-signature verification. Downloads allow slow
-links but fail if throughput stays below 1 KiB/s for 60 seconds.
-The global CLI binary is unchanged, but the local CLI still writes shared
-`~/.aspire` state, including bundles, dashboard runs, and logs.
+Commands use the installed `aspire` CLI directly. The helpers fail early if it
+is missing or older than 13.6.1; they accept newer versions. For test fixtures,
+helpers also honor `ASPIRE_BIN` as an executable override. No helper installs or
+upgrades the CLI. Aspire still writes shared `~/.aspire` state, including bundles,
+dashboard runs, and logs.
 `check.sh` builds both AppHosts and the services, runs .NET and Node tests, restores
 the committed npm lockfile, and builds the frontend. It does not start services.
 
 Open **web** using the dashboard URL printed by `start`, or inspect its current URL:
 
 ```bash
-bash scripts/aspire.sh describe \
+aspire describe \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
   --format Table --non-interactive
 ```
@@ -95,8 +93,8 @@ bash scripts/check.sh
 ```
 
 Keep that environment variable for subsequent Aspire builds in this shell if
-necessary. This does not alter machine-wide NuGet configuration. The CLI installer
-uses the official tagged GitHub release, not an unofficial package mirror.
+necessary. This does not alter machine-wide NuGet configuration or the installed
+Aspire CLI.
 
 ## Shared app contract
 
@@ -165,9 +163,9 @@ activate dashboard console-log persistence.
 ## Cleanup
 
 ```bash
-bash scripts/aspire.sh stop \
+aspire stop \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj --non-interactive
-bash scripts/aspire.sh stop \
+aspire stop \
   --apphost terminals/Terminal.AppHost/Terminal.AppHost.csproj --non-interactive
 ```
 
@@ -192,5 +190,7 @@ serve; Compose uses `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6`.
 Review those nightly/preview tags before any real deployment. See the deployment
 exercise before treating published files as a production deployment.
 
-The exercises stay pinned to 13.6.1. If a newer-version notification appears in
-the dashboard, ignore it for this reproduction rather than mixing tool versions.
+The collection was validated with CLI 13.6.1. Later installed CLIs are accepted,
+but this validation record does not claim they were all tested. An update notice
+does not require upgrading during an exercise; record `aspire --version` when
+comparing results.

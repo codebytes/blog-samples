@@ -10,7 +10,7 @@ build does not conflict with live assemblies. Then select the target explicitly:
 
 ```bash
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
-bash scripts/aspire.sh stop --apphost "$apphost" --non-interactive
+aspire stop --apphost "$apphost" --non-interactive
 bash scripts/publish.sh compose
 ```
 
@@ -20,9 +20,9 @@ usage error. In publish mode, the AppHost itself also rejects a missing or unkno
 underlying commands are:
 
 ```bash
-Deployment__Target=compose bash scripts/aspire.sh publish \
+Deployment__Target=compose aspire publish \
   --apphost "$apphost" --list-steps --non-interactive
-Deployment__Target=compose bash scripts/aspire.sh publish \
+Deployment__Target=compose aspire publish \
   --apphost "$apphost" --output-path "$PWD/artifacts/compose" --non-interactive
 node scripts/review-compose.mjs artifacts/compose
 ```

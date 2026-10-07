@@ -24,12 +24,12 @@ and "production" path branches.
 
 ```bash
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
-bash scripts/aspire.sh start --apphost "$apphost" --isolated --non-interactive
+aspire start --apphost "$apphost" --isolated --non-interactive
 node scripts/smoke.mjs healthy
 node scripts/state-smoke.mjs write
 
-bash scripts/aspire.sh stop --apphost "$apphost" --non-interactive
-bash scripts/aspire.sh start --apphost "$apphost" --isolated --non-interactive
+aspire stop --apphost "$apphost" --non-interactive
+aspire start --apphost "$apphost" --isolated --non-interactive
 node scripts/smoke.mjs healthy
 node scripts/state-smoke.mjs verify
 ```
@@ -57,7 +57,7 @@ the file atomically. It does not claim coordination between multiple API replica
 node scripts/init-secret.mjs
 
 # No live services needed: corrupt state, missing config, and retained-file tests.
-bash scripts/aspire.sh stop --apphost "$apphost" --non-interactive
+aspire stop --apphost "$apphost" --non-interactive
 dotnet test tests/Catalog.Tests/Catalog.Tests.csproj --no-restore
 node --test tests/*.test.mjs
 ```

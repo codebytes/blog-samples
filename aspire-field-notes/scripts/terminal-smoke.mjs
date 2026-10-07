@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { requireAspire } from "./require-aspire.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -22,6 +23,7 @@ if (process.argv[1] && existsSync(process.argv[1]) &&
   assert.ok(process.argv.length === 2 ||
     (process.argv.length === 3 && process.argv[2] === "--negative-control"),
   "Usage: node scripts/terminal-smoke.mjs [--negative-control]");
+  const { command } = requireAspire();
   const negativeControl = process.argv[2] === "--negative-control";
   const nonce = randomBytes(8).toString("hex");
   const { tape: template, marker } = makeTape(nonce);
@@ -30,8 +32,7 @@ if (process.argv[1] && existsSync(process.argv[1]) &&
   mkdirSync(directory, { recursive: true });
   const path = resolve(directory, `${nonce}.tape`);
   writeFileSync(path, tape, { flag: "wx" });
-  const result = spawnSync("bash", [
-    resolve(root, "scripts/aspire.sh"),
+  const result = spawnSync(command, [
     "terminal", "tape", "play", "node-repl",
     "--apphost", resolve(root, "terminals/Terminal.AppHost/Terminal.AppHost.csproj"),
     "--tape-file", path, "--timeout", "20", "--non-interactive", "--nologo",

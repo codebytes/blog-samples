@@ -11,10 +11,10 @@ REPL explicitly:
 
 ```bash
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
-Diagnostics__EnableRepl=true bash scripts/aspire.sh start \
+Diagnostics__EnableRepl=true aspire start \
   --apphost "$apphost" --isolated --non-interactive
-bash scripts/aspire.sh wait api --apphost "$apphost" --status healthy --timeout 120 --non-interactive
-bash scripts/aspire.sh resource postgres repl --apphost "$apphost" --non-interactive
+aspire wait api --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire resource postgres repl --apphost "$apphost" --non-interactive
 ```
 
 The AppHost applies `WithRepl()` to **`postgres`**, not `catalogdb`. The CLI prints
@@ -58,9 +58,9 @@ in 13.6 and has a narrowly scoped `ASPIRETERMINAL001` acknowledgement.
 
 ```bash
 terminal_apphost=terminals/Terminal.AppHost/Terminal.AppHost.csproj
-bash scripts/aspire.sh start --apphost "$terminal_apphost" --isolated --non-interactive
-bash scripts/aspire.sh wait node-repl --apphost "$terminal_apphost" --status up --timeout 90 --non-interactive
-bash scripts/aspire.sh terminal ps --apphost "$terminal_apphost" --non-interactive
+aspire start --apphost "$terminal_apphost" --isolated --non-interactive
+aspire wait node-repl --apphost "$terminal_apphost" --status up --timeout 90 --non-interactive
+aspire terminal ps --apphost "$terminal_apphost" --non-interactive
 node scripts/terminal-smoke.mjs
 node scripts/terminal-smoke.mjs
 node scripts/terminal-smoke.mjs --negative-control
@@ -77,7 +77,7 @@ outer process deadline. The first prompt wait tolerates trimmed trailing spaces.
 The actual playback command is:
 
 ```bash
-bash scripts/aspire.sh terminal tape play node-repl \
+aspire terminal tape play node-repl \
   --apphost "$terminal_apphost" \
   --tape-file artifacts/terminals/REPLACE_WITH_GENERATED_NONCE.tape \
   --timeout 20 --non-interactive
@@ -85,7 +85,7 @@ bash scripts/aspire.sh terminal tape play node-repl \
 
 The template's `RUN_NONCE` is replaced by the helper, not by Aspire. Do not reuse
 a generated nonce for a meaningful repeatability check. To inspect a session,
-use `bash scripts/aspire.sh terminal attach node-repl --apphost "$terminal_apphost" --viewer`
+use `aspire terminal attach node-repl --apphost "$terminal_apphost" --viewer`
 and detach with **Ctrl+B D**; the process remains running. `--viewer` watches
 without driving the shared terminal's dimensions.
 
@@ -96,7 +96,7 @@ output match. Detach the small peer, attach again from a normal-size terminal
 window (at least 32 columns), then press **Ctrl+B D**:
 
 ```bash
-bash scripts/aspire.sh terminal attach node-repl --apphost "$terminal_apphost"
+aspire terminal attach node-repl --apphost "$terminal_apphost"
 # After detaching with Ctrl+B D:
 node scripts/terminal-smoke.mjs
 ```
@@ -106,9 +106,9 @@ Restarting only `node-repl` can preserve the reduced size. Alternatively, stop
 and start this **Terminal AppHost** to restore the configured 160x30 dimensions:
 
 ```bash
-bash scripts/aspire.sh stop --apphost "$terminal_apphost" --non-interactive
-bash scripts/aspire.sh start --apphost "$terminal_apphost" --isolated --non-interactive
-bash scripts/aspire.sh wait node-repl --apphost "$terminal_apphost" --status up --timeout 90 --non-interactive
+aspire stop --apphost "$terminal_apphost" --non-interactive
+aspire start --apphost "$terminal_apphost" --isolated --non-interactive
+aspire wait node-repl --apphost "$terminal_apphost" --status up --timeout 90 --non-interactive
 node scripts/terminal-smoke.mjs
 ```
 
@@ -124,8 +124,8 @@ Startup or connection failures print the CLI's diagnostics before the assertion;
 an absent AppHost is not a successful negative control.
 
 ```bash
-bash scripts/aspire.sh stop --apphost "$terminal_apphost" --non-interactive
-bash scripts/aspire.sh stop --apphost "$apphost" --non-interactive
+aspire stop --apphost "$terminal_apphost" --non-interactive
+aspire stop --apphost "$apphost" --non-interactive
 ```
 
 Reference: [terminal tape semantics and limitations](https://aspire.dev/dashboard/terminal-tape-playback/).
