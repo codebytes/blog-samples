@@ -37,7 +37,7 @@ assert.ok(!api.ports?.length && !inventory.ports?.length && !postgres.ports?.len
   "Only the frontend (and optional dashboard) should expose published host ports.");
 const placeholders = readFileSync(resolve(directory, ".env"), "utf8");
 assert.ok(placeholders.split(/\r?\n/).includes("POSTGRES_PASSWORD="),
-  "The publish-only exercise requires an empty Postgres secret placeholder, not a saved secret value.");
+  "The publish-only walkthrough requires an empty Postgres secret placeholder, not a saved secret value.");
 assert.ok(postgres.environment.POSTGRES_PASSWORD === "${POSTGRES_PASSWORD}",
   "The generated Postgres service must reference its secret placeholder.");
 assert.equal(composeHash(), composeSha256, "Compose changed during review; run the review again.");

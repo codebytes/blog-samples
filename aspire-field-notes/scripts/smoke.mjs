@@ -17,7 +17,7 @@ export function assertTrace(spans, traceId, status) {
     span.attributes["http.route"] === "/inventory");
   const database = spans.find((span) => span.source === "api" && span.attributes["db.namespace"] === "catalogdb");
   assert.ok(api && inventory && database, "Need API, inventory, and database spans, not just a frontend error.");
-  assert.equal(clients.length, 1, "Exactly one downstream HTTP attempt is required; retries hide this exercise.");
+  assert.equal(clients.length, 1, "Exactly one downstream HTTP attempt is required; retries hide this walkthrough.");
   assert.equal(clients[0].parentSpanId, api.spanId);
   assert.equal(inventory.parentSpanId, clients[0].spanId);
   for (const span of [api, clients[0], inventory]) {

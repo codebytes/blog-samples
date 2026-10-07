@@ -1,16 +1,16 @@
 # Aspire Field Notes: runnable companions
 
-One small catalog app, six exercises. These samples are separate
+One small catalog app, six walkthroughs. These samples are separate
 from the older [`aspire-cli`](../aspire-cli/) collection.
 
-| Article | Runnable exercise |
+| Article | Runnable walkthrough |
 | --- | --- |
-| 1. Keep the failing run | [A real downstream 503, correlated evidence, and recovery](exercises/01-keep-the-failing-run/) |
-| 2. Model the whole app | [Configuration, readiness, and telemetry in a polyglot graph](exercises/02-model-the-whole-app/) |
-| 3. Terminals and REPLs | [PostgreSQL diagnostics and a bounded Node terminal tape](exercises/03-terminals-and-repls/) |
-| 4. Agents with evidence | [CLI guidance, explicit AppHost selection, and repeatable checks](exercises/04-agents-with-evidence/) |
-| 5. Portable state and config | [A retained file, fail-fast configuration, and stable credentials](exercises/05-portable-state-and-config/) |
-| 6. Choose your deployment | [Explicit Docker Compose publication and artifact assertions](exercises/06-choose-your-deployment/) |
+| 1. Keep the failing run | [A real downstream 503, correlated evidence, and recovery](walkthroughs/01-keep-the-failing-run/) |
+| 2. Model the whole app | [Configuration, readiness, and telemetry in a polyglot graph](walkthroughs/02-model-the-whole-app/) |
+| 3. Terminals and REPLs | [PostgreSQL diagnostics and a bounded Node terminal tape](walkthroughs/03-terminals-and-repls/) |
+| 4. Agents with evidence | [CLI guidance, explicit AppHost selection, and repeatable checks](walkthroughs/04-agents-with-evidence/) |
+| 5. Portable state and config | [A retained file, fail-fast configuration, and stable credentials](walkthroughs/05-portable-state-and-config/) |
+| 6. Choose your deployment | [Explicit Docker Compose publication and artifact assertions](walkthroughs/06-choose-your-deployment/) |
 
 ## Prerequisites
 
@@ -141,7 +141,7 @@ volume unless you also change the database user's password.
 
 `--isolated` randomizes ports and copies user secrets for the run. It does not mean
 "erase all storage." Reuse the same AppHost path and resource/volume names for the
-retention exercise; different worktree paths have their own workload storage.
+retention walkthrough; different worktree paths have their own workload storage.
 For this project the file store is under
 `catalog/Catalog.AppHost/obj/.aspire/volumes/.../state.json`. Deleting `obj` or
 running `git clean -fdX` removes that ignored application data.
@@ -168,7 +168,7 @@ aspire stop \
 
 Stop only an AppHost you started; do not use `--all` on a shared machine. Ordinary
 stop preserves diagnostic history, the application file store, and named database
-storage. Removing these is a separate, destructive choice; no exercise deletes them.
+storage. Removing these is a separate, destructive choice; no walkthrough deletes them.
 
 ## Version and deployment boundaries
 
@@ -197,6 +197,6 @@ generated base image is stable. With the pinned 13.6.1 integrations, `web.Docker
 `node:22-slim` to build and `mcr.microsoft.com/dotnet/nightly/yarp:2.3-preview` to
 serve; Compose uses `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6`.
 Review those nightly/preview tags before any real deployment. See the deployment
-exercise before treating published files as a production deployment.
+walkthrough before treating published files as a production deployment.
 
-Keep the AppHost SDK and integration package versions pinned during the exercises.
+Keep the AppHost SDK and integration package versions pinned during the walkthroughs.

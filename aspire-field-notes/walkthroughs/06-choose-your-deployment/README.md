@@ -3,7 +3,7 @@
 This companion implements **one target: Docker Compose**. It demonstrates target
 selection and generated-artifact review without becoming a multi-cloud framework.
 Azure Container Apps, AKS, Kubernetes, App Service, and preview Azure environments
-remain article comparisons; none is provisioned or exercised by this sample.
+remain article comparisons; none is provisioned or tested by this sample.
 
 After [setup](../../README.md), stop the catalog AppHost you started so the publish
 build does not conflict with live assemblies. Then select the target explicitly:

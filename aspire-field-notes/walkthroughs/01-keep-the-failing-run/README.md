@@ -21,7 +21,7 @@ inventory `/health` endpoints remain healthy. Then it verifies that the catalog
 request read PostgreSQL and made exactly one downstream HTTP request: the API
 server span parents an HTTP client span, which parents inventory's server span.
 All three HTTP spans report 503. Removing the call, changing the expected status,
-or adding retries is not a fix for this exercise.
+or adding retries is not a fix for this walkthrough.
 
 Open the current **web** URL from the dashboard and select **Load catalog**. The
 page shows the failure and its trace ID, not a made-up frontend error. There are no

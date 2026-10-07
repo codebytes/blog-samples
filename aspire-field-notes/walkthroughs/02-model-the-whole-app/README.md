@@ -48,7 +48,7 @@ a hard-coded API port. Open the smoke check's `spans.json`: the trace begins at
 the instrumented API and includes inventory and the database; Vite does not emit
 application spans in this sample.
 
-Now run the [503 exercise](../01-keep-the-failing-run/). Its unchanged green health
+Now run the [503 walkthrough](../01-keep-the-failing-run/). Its unchanged green health
 checks prove why configuration, readiness, and successful requests are different
 claims.
 

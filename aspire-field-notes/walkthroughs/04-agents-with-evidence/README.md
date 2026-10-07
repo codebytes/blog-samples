@@ -7,7 +7,7 @@ Never share another session's checkout or stop unrelated AppHosts.
 
 Use the installed Aspire CLI directly. Setup installs the Aspire workflow skills;
 inspect the generated guidance before adopting it. Do not turn on remote skill
-fetching or override `aspireSkillsVersion` for this exercise.
+fetching or override `aspireSkillsVersion` for this walkthrough.
 
 **Read before running:** `github` installs skill files into the selected workspace,
 whereas `standard` also writes `~/.agents/skills`. In addition,
@@ -78,8 +78,8 @@ bash scripts/check.sh
 
 The Node tests reject missing proxy configuration, terminal input-echo matches,
 broken trace propagation, UI-only failures, and concealed downstream retries.
-They also exercise symlinked script paths, failed-smoke evidence capture,
+They also check symlinked script paths, failed-smoke evidence capture,
 missing-AppHost errors, and stale publication reviews.
 The .NET tests cover retained state, concurrent single-process writes, corrupt
-state, and missing configuration. Follow the separate [recovery exercise](../01-keep-the-failing-run/)
+state, and missing configuration. Follow the separate [recovery walkthrough](../01-keep-the-failing-run/)
 to verify recovery explicitly; do not mislabel it as an agent repairing an unknown bug.

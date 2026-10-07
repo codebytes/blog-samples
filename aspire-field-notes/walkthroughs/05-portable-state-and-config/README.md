@@ -87,7 +87,7 @@ automatically understands .NET connection-string aliases.
 | Application data | `DATA_PATH/state.json`, PostgreSQL rows | The actual application values remain |
 | Deployment state | Target pipeline records and generated artifacts | A separate deployment lifecycle, not app data |
 
-No cloud deployment state is created by this exercise. Finish with the scoped
+No cloud deployment state is created by this walkthrough. Finish with the scoped
 `stop` command; retention is not a backup strategy. Unlike the project-local file
 store, dashboard runs are shared across Catalog checkouts and count toward the
 same 10-unpinned-run limit. A headless run may retain telemetry without a resource

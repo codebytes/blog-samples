@@ -19,7 +19,7 @@ app.MapGet("/inventory", (ILogger<Program> logger) =>
         return Results.Problem(
             statusCode: StatusCodes.Status503ServiceUnavailable,
             title: "Intentional inventory outage",
-            detail: "The configured exercise fault affects this request, not /health.",
+            detail: "The configured walkthrough fault affects this request, not /health.",
             extensions: new Dictionary<string, object?> { ["traceId"] = traceId });
     }
 
