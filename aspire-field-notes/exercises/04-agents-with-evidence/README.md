@@ -5,15 +5,13 @@ Never share another session's checkout or stop unrelated AppHosts.
 
 ## Optional guidance setup
 
-Use the installed Aspire CLI 13.6.1 or later and check `aspire --version`. This
-collection was validated with 13.6.1; its setup normally uses the embedded,
-verified Aspire workflow-skill snapshot. Do not turn on remote skill fetching or
-set a different `aspireSkillsVersion` for this exercise. Later CLI versions can
-ship different guidance and setup behavior.
+Use the installed Aspire CLI directly. Setup installs the Aspire workflow skills;
+inspect the generated guidance before adopting it. Do not turn on remote skill
+fetching or override `aspireSkillsVersion` for this exercise.
 
 **Read before running:** `github` installs skill files into the selected workspace,
-whereas 13.6's `standard` location also writes `~/.agents/skills`. In addition,
-13.6 `agent init` registers user-level telemetry hooks for detected supported
+whereas `standard` also writes `~/.agents/skills`. In addition,
+`agent init` registers user-level telemetry hooks for detected supported
 agents. `ASPIRE_CLI_TELEMETRY_OPTOUT=true` disables telemetry transmission while
 set; it **does not prevent hook registration**. Run this optional setup only if
 you accept those user-level configuration changes, or use an environment with a
@@ -36,7 +34,7 @@ ignored here. Re-running setup does not remove workflow skills from locations
 you later deselect. Playwright's same-run temporary-folder cleanup is not a
 general skill uninstall mechanism.
 Existing repository-wide guidance is historical: where examples differ, use the
-13.6 CLI's help and the commands verified in this collection. In particular,
+installed CLI's help and the commands verified in this collection. In particular,
 `describe --apphost ...` inspects resources; `ps` lists AppHosts.
 
 Tagged implementation references:
@@ -81,7 +79,7 @@ bash scripts/check.sh
 The Node tests reject missing proxy configuration, terminal input-echo matches,
 broken trace propagation, UI-only failures, and concealed downstream retries.
 They also exercise symlinked script paths, failed-smoke evidence capture,
-missing-AppHost errors, the installed CLI minimum version, and stale publication reviews.
+missing-AppHost errors, and stale publication reviews.
 The .NET tests cover retained state, concurrent single-process writes, corrupt
 state, and missing configuration. Follow the separate [recovery exercise](../01-keep-the-failing-run/)
 to verify recovery explicitly; do not mislabel it as an agent repairing an unknown bug.

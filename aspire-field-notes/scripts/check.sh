@@ -3,7 +3,6 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
-node scripts/require-aspire.mjs
 dotnet build AspireFieldNotes.slnx --verbosity minimal
 dotnet test tests/Catalog.Tests/Catalog.Tests.csproj --no-build --no-restore --verbosity minimal
 npm ci --prefix catalog/web --no-audit --no-fund

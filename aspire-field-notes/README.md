@@ -1,6 +1,6 @@
 # Aspire Field Notes: runnable companions
 
-One small catalog app, six exercises, validated with **Aspire 13.6.1**. These samples are separate
+One small catalog app, six exercises. These samples are separate
 from the older [`aspire-cli`](../aspire-cli/) collection.
 
 | Article | Runnable exercise |
@@ -21,7 +21,8 @@ from the older [`aspire-cli`](../aspire-cli/) collection.
   PostgreSQL integration supplies its own database client; no host `psql` is needed.
 - Bash for the Mac/Linux helper scripts. Windows users can run these
   commands in a WSL environment with the same prerequisites.
-- An installed **Aspire CLI 13.6.1 or later**, available as `aspire` on `PATH`.
+- **Aspire CLI 13.6 or later (the latest release is recommended)**, available as
+  `aspire` on `PATH`.
   See the [official CLI installation instructions](https://aspire.dev/get-started/install-cli/).
   The AppHost SDK and integration packages remain pinned to 13.6.1.
 
@@ -32,9 +33,6 @@ the dashboard, REPL, or application to untrusted users.
 ## Quick start
 
 ```bash
-# Confirm the installed CLI is 13.6.1 or later.
-aspire --version
-
 # Generate a local secret once, or preserve the existing secret without printing it.
 node scripts/init-secret.mjs
 
@@ -48,9 +46,8 @@ aspire start \
 node scripts/smoke.mjs healthy
 ```
 
-Commands use the installed `aspire` CLI directly. The helpers fail early if it
-is missing or older than 13.6.1; they accept newer versions. For test fixtures,
-helpers also honor `ASPIRE_BIN` as an executable override. No helper installs or
+Commands and helpers use the installed `aspire` CLI directly from `PATH`.
+For test fixtures, helpers honor `ASPIRE_BIN` as an executable override. No helper installs or
 upgrades the CLI. Aspire still writes shared `~/.aspire` state, including bundles,
 dashboard runs, and logs.
 `check.sh` builds both AppHosts and the services, runs .NET and Node tests, restores
@@ -64,7 +61,7 @@ aspire describe \
   --format Table --non-interactive
 ```
 
-In 13.6, `aspire ps` lists running **AppHosts**; `aspire describe` lists their
+`aspire ps` lists running **AppHosts**; `aspire describe` lists their
 **resources**. Always select the AppHost explicitly in this multi-AppHost repository.
 Use the table format for a resource inventory. **Do not print or share raw
 `describe --format Json` output:** its API environment can expose the PostgreSQL
@@ -180,17 +177,26 @@ The Node resource's `WithTerminal()` is experimental in 13.6.
 experimental in 13.6. Diagnostics are acknowledged narrowly at the call sites.
 Its `StripPrefix` default is `false`; the sample sets it explicitly to document
 the `/api` routing contract. PostgreSQL's `WithRepl()` is opt-in.
-Docker Compose is the only modeled deployment target. `publish.sh compose` emits
-and reviews artifacts; it does not build images, run Compose, provision cloud
-resources, or change access permissions. Review the generated image tags as well
+Docker Compose is the only modeled deployment target. Publish and review its
+artifacts directly:
+
+```bash
+apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
+aspire stop --apphost "$apphost" --non-interactive
+Deployment__Target=compose aspire publish \
+  --apphost "$apphost" --list-steps --non-interactive &&
+Deployment__Target=compose aspire publish \
+  --apphost "$apphost" --output-path "$PWD/artifacts/compose" --non-interactive &&
+node scripts/review-compose.mjs artifacts/compose
+```
+
+These commands do not build images, run Compose, provision cloud resources, or
+change access permissions. Review the generated image tags as well
 as routing, secrets, and volumes; a stable Aspire package does not imply every
-generated base image is stable. With 13.6.1, `web.Dockerfile` still uses
+generated base image is stable. With the pinned 13.6.1 integrations, `web.Dockerfile` uses
 `node:22-slim` to build and `mcr.microsoft.com/dotnet/nightly/yarp:2.3-preview` to
 serve; Compose uses `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6`.
 Review those nightly/preview tags before any real deployment. See the deployment
 exercise before treating published files as a production deployment.
 
-The collection was validated with CLI 13.6.1. Later installed CLIs are accepted,
-but this validation record does not claim they were all tested. An update notice
-does not require upgrading during an exercise; record `aspire --version` when
-comparing results.
+Keep the AppHost SDK and integration package versions pinned during the exercises.

@@ -2,13 +2,12 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { requireAspire } from "./require-aspire.mjs";
 
 export const root = fileURLToPath(new URL("../", import.meta.url));
 export const catalogAppHost = resolve(root, "catalog/Catalog.AppHost/Catalog.AppHost.csproj");
 
 export function aspire(args, timeout = 40_000) {
-  const result = spawnSync(requireAspire().command, [
+  const result = spawnSync(process.env.ASPIRE_BIN || "aspire", [
     ...args,
     "--apphost", catalogAppHost, "--non-interactive", "--nologo",
   ], { cwd: root, encoding: "utf8", timeout, maxBuffer: 8 * 1024 * 1024 });

@@ -12,7 +12,7 @@ if (builder.ExecutionContext.IsPublishMode)
 {
     if (target != "compose")
     {
-        throw new InvalidOperationException("Select Deployment:Target=compose explicitly, or use scripts/publish.sh compose.");
+        throw new InvalidOperationException("Select Deployment:Target=compose explicitly.");
     }
 
     builder.AddDockerComposeEnvironment("compose");
