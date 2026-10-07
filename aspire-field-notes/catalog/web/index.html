@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Aspire Field Notes | Catalog</title>
+    <link rel="icon" href="data:,">
+    <script>
+      (() => {
+        const param = new URLSearchParams(window.location.search).get("scoutTheme");
+        const theme =
+          param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --cp-bg: #f7f4ef;
+        --cp-bg-elevated: #fcfbf8;
+        --cp-surface: #ffffff;
+        --cp-surface-soft: #f5f5f5;
+        --cp-border: #dedede;
+        --cp-border-strong: #919191;
+        --cp-text: #242424;
+        --cp-text-muted: #5c5c5c;
+        --cp-text-soft: #6f6f6f;
+        --cp-accent: #b11f4b;
+        --cp-accent-hover: #9a1a41;
+        --cp-accent-soft: rgba(177, 31, 75, 0.08);
+        --cp-accent-fg: #ffffff;
+        --cp-success: #16a34a;
+        --cp-danger: #dc2626;
+        --cp-warning: #f59e0b;
+        --cp-link: #0078d4;
+        --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+        --cp-overlay: rgba(255, 255, 255, 0.8);
+        --cp-panel: rgba(255, 255, 255, 0.86);
+        --cp-panel-strong: rgba(255, 255, 255, 0.96);
+        --cp-sheen: rgba(255, 255, 255, 0.55);
+        --cp-highlight: rgba(177, 31, 75, 0.12);
+      }
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --cp-bg: #3d3b3a;
+        --cp-bg-elevated: #343231;
+        --cp-surface: #292929;
+        --cp-surface-soft: #2e2e2e;
+        --cp-border: #474747;
+        --cp-border-strong: #5f5f5f;
+        --cp-text: #dedede;
+        --cp-text-muted: #919191;
+        --cp-text-soft: #b0b0b0;
+        --cp-accent: #fd8ea1;
+        --cp-accent-hover: #fb7b91;
+        --cp-accent-soft: rgba(253, 142, 161, 0.14);
+        --cp-accent-fg: #1a1a1a;
+        --cp-success: #4ade80;
+        --cp-danger: #f87171;
+        --cp-warning: #fbbf24;
+        --cp-link: #4da6ff;
+        --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+        --cp-overlay: rgba(41, 41, 41, 0.88);
+        --cp-panel: rgba(41, 41, 41, 0.72);
+        --cp-panel-strong: rgba(41, 41, 41, 0.96);
+        --cp-sheen: rgba(255, 255, 255, 0.04);
+        --cp-highlight: rgba(253, 142, 161, 0.12);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--cp-bg); color: var(--cp-text);
+        font: 16px/1.6 "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      main { max-width: 960px; margin: auto; padding: 48px 24px; }
+      header { margin-bottom: 32px; }
+      h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; margin: 8px 0 16px; }
+      h2 { margin-top: 0; font-size: 1.25rem; }
+      .eyebrow { color: var(--cp-accent); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+      p { color: var(--cp-text-muted); }
+      section { margin: 24px 0; padding: 24px; border: 1px solid var(--cp-border); border-radius: 16px; background: var(--cp-surface); }
+      button, input { font: inherit; border-radius: 0.625rem; padding: 8px 16px; }
+      button { border: 1px solid var(--cp-accent); background: var(--cp-accent); color: var(--cp-accent-fg); cursor: pointer; }
+      button:hover { background: var(--cp-accent-hover); }
+      button:disabled { opacity: 0.6; cursor: wait; }
+      input { width: 100%; border: 1px solid var(--cp-border-strong); color: var(--cp-text); background: var(--cp-bg-elevated); margin: 8px 0 16px; }
+      :focus-visible { outline: 3px solid var(--cp-link); outline-offset: 3px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--cp-border); }
+      code, pre { font-family: Consolas, "Courier New", Courier, monospace; overflow-wrap: anywhere; }
+      pre { white-space: pre-wrap; padding: 16px; background: var(--cp-surface-soft); border-radius: 0.625rem; }
+      .error { color: var(--cp-danger); }
+      .success { color: var(--cp-success); }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+      footer { color: var(--cp-text-muted); font-size: 0.875rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="eyebrow">Aspire 13.6 / Field Notes</span>
+        <h1>A small catalog.<br>Real dependency evidence.</h1>
+        <p>Vite forwards same-origin requests to the .NET API. The API reads PostgreSQL and calls inventory once.
+          A green health check does not guarantee that every business request succeeds.</p>
+      </header>
+      <section aria-labelledby="catalog-heading">
+        <h2 id="catalog-heading">Catalog request</h2>
+        <button id="load-catalog" type="button">Load catalog</button>
+        <p id="catalog-status" role="status">Ready to request the catalog.</p>
+        <p>Trace ID: <code id="trace-id">No request yet</code></p>
+        <table>
+          <thead><tr><th>Product</th><th>Price (USD)</th><th>In stock</th></tr></thead>
+          <tbody id="products"></tbody>
+        </table>
+      </section>
+      <section aria-labelledby="state-heading">
+        <h2 id="state-heading">Application state, not diagnostic history</h2>
+        <p>A benign note is written to <code>DATA_PATH/state.json</code>. Restart the same AppHost and read it again.
+          The API instance ID changes; the note and revision survive.</p>
+        <form id="state-form">
+          <label for="message">Note (no secrets)</label>
+          <input id="message" name="message" maxlength="256" required placeholder="Retained after a restart">
+          <div class="actions">
+            <button id="save-state" type="submit">Save note</button>
+            <button id="read-state" type="button">Read saved note</button>
+          </div>
+        </form>
+        <p id="state-status" role="status"></p>
+        <pre id="state-output">No state read yet.</pre>
+      </section>
+      <footer>Local learning sample. No authentication, payment processing, cloud provisioning, or hidden retries.</footer>
+    </main>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

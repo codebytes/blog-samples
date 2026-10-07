@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/catalog/">
+    <Project Path="catalog/Catalog.Api/Catalog.Api.csproj" />
+    <Project Path="catalog/Catalog.AppHost/Catalog.AppHost.csproj" />
+    <Project Path="catalog/Inventory.Api/Inventory.Api.csproj" />
+    <Project Path="catalog/ServiceDefaults/ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/terminals/">
+    <Project Path="terminals/Terminal.AppHost/Terminal.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Catalog.Tests/Catalog.Tests.csproj" />
+  </Folder>
+</Solution>

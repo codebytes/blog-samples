@@ -13,6 +13,7 @@ Each subdirectory contains a self-contained sample with its own README, prerequi
 | Collection | Description |
 |------------|-------------|
 | [aspire-cli](aspire-cli/) | .NET Aspire CLI series - building, deploying, and debugging distributed applications |
+| [aspire-field-notes](aspire-field-notes/) | Aspire 13.6 catalog, debugging, terminal, agent, state, and publish-only deployment exercises |
 
 ## Contributing
 
