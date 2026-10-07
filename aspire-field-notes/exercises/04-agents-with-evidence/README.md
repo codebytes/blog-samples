@@ -5,7 +5,7 @@ Never share another session's checkout or stop unrelated AppHosts.
 
 ## Optional, version-pinned guidance setup
 
-The wrapper requires CLI 13.6.0. That release normally uses its embedded, verified
+The wrapper requires CLI 13.6.1. That release normally uses its embedded, verified
 Aspire workflow-skill snapshot; do not turn on remote skill fetching or set a
 different `aspireSkillsVersion` for this exercise.
 
@@ -26,15 +26,20 @@ ASPIRE_CLI_TELEMETRY_OPTOUT=true bash scripts/aspire.sh agent init \
 ```
 
 Explicit skill names avoid the unrelated optional tooling installs triggered by
-`--skills all`. `--mcp=false` leaves MCP configuration alone. Inspect generated
-`catalog/.github/skills/` before adopting it; these files are ignored here.
+`--skills all`. `--mcp=false` skips new MCP configuration and does not remove
+existing connections. Setup can still rewrite deprecated `aspire mcp start`
+entries in the workspace's MCP files to `aspire agent mcp`.
+Inspect generated `catalog/.github/skills/` before adopting it; these files are
+ignored here. Re-running setup does not remove workflow skills from locations
+you later deselect. Playwright's same-run temporary-folder cleanup is not a
+general skill uninstall mechanism.
 Existing repository-wide guidance is historical: where examples differ, use the
 13.6 CLI's help and the commands verified in this collection. In particular,
 `describe --apphost ...` inspects resources; `ps` lists AppHosts.
 
 Tagged implementation references:
-[locations](https://github.com/microsoft/aspire/blob/v13.6.0/src/Aspire.Cli/Agents/SkillLocation.cs),
-[setup and hook registration](https://github.com/microsoft/aspire/blob/v13.6.0/src/Aspire.Cli/Commands/AgentInitCommand.cs).
+[locations](https://github.com/microsoft/aspire/blob/v13.6.1/src/Aspire.Cli/Agents/SkillLocation.cs),
+[setup and hook registration](https://github.com/microsoft/aspire/blob/v13.6.1/src/Aspire.Cli/Commands/AgentInitCommand.cs).
 
 ## A bounded investigation
 
@@ -73,6 +78,8 @@ bash scripts/check.sh
 
 The Node tests reject missing proxy configuration, terminal input-echo matches,
 broken trace propagation, UI-only failures, and concealed downstream retries.
+They also exercise symlinked script paths, failed-smoke evidence capture,
+missing-AppHost errors, pinned-checksum rejection, and stale publication reviews.
 The .NET tests cover retained state, concurrent single-process writes, corrupt
 state, and missing configuration. Follow the separate [recovery exercise](../01-keep-the-failing-run/)
 to verify recovery explicitly; do not mislabel it as an agent repairing an unknown bug.

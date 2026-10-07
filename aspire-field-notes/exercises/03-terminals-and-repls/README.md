@@ -17,9 +17,14 @@ bash scripts/aspire.sh wait api --apphost "$apphost" --status healthy --timeout 
 bash scripts/aspire.sh resource postgres repl --apphost "$apphost" --non-interactive
 ```
 
-The AppHost applies `WithRepl()` to **`postgres`**, not `catalogdb`. You can also
-use **postgres > Actions > REPL** in the dashboard. It opens the container's
-bundled `psql` connected initially to the `postgres` database.
+The AppHost applies `WithRepl()` to **`postgres`**, not `catalogdb`. The CLI prints
+`Command 'repl' executed successfully` and opens the container's bundled `psql`
+in the **dashboard dock**; it does not attach your current shell. The client
+initially connects to the `postgres` database.
+
+Use **postgres > Actions > REPL** in the dashboard as an **alternative** to the
+CLI command, not an additional step. Doing both creates two clients, and each
+needs its own `\q`.
 
 In the docked client:
 
@@ -78,12 +83,23 @@ a generated nonce for a meaningful repeatability check. To inspect a session,
 use `bash scripts/aspire.sh terminal attach node-repl --apphost "$terminal_apphost"` and detach
 with **Ctrl+B D**; the process remains running.
 
+A peer attaching from a tiny window can resize the shared PTY. The fresh marker
+needs about 32 columns (the default is 160); wrapping can break the output match.
+Detach the small viewer and restart this resource before retrying:
+
+```bash
+bash scripts/aspire.sh resource node-repl restart --apphost "$terminal_apphost" --non-interactive
+bash scripts/aspire.sh wait node-repl --apphost "$terminal_apphost" --status up --timeout 90 --non-interactive
+```
+
 Playback success means the tape finished, not that arbitrary code or an entire
 application succeeded. Here success additionally requires the fresh, computed
 result on the screen. Changing `6*7` to `6*8` while keeping the expected result
 must fail with a bounded wait (CLI exit 16). The `--negative-control` helper does
 exactly that and only passes if the screen actually contains the fresh computed
 48 and the expected-42 wait fails. A missing prompt is not an acceptable negative result.
+Startup or connection failures print the CLI's diagnostics before the assertion;
+an absent AppHost is not a successful negative control.
 
 ```bash
 bash scripts/aspire.sh stop --apphost "$terminal_apphost" --non-interactive

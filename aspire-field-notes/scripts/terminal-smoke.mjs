@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,7 +17,8 @@ export function makeTape(nonce) {
   return { tape, marker };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && existsSync(process.argv[1]) &&
+    realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   assert.ok(process.argv.length === 2 ||
     (process.argv.length === 3 && process.argv[2] === "--negative-control"),
   "Usage: node scripts/terminal-smoke.mjs [--negative-control]");
@@ -38,7 +39,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   writeFileSync(resolve(directory, `${nonce}.screen.txt`), result.stdout ?? "", { flag: "wx" });
   writeFileSync(resolve(directory, `${nonce}.diagnostics.txt`), result.stderr ?? "", { flag: "wx" });
   if (negativeControl && !result.error) {
-    assert.equal(result.status, 16, "The wrong computation must fail the tape's output wait.");
+    if (result.stderr) console.error(result.stderr);
+    assert.equal(result.status, 16,
+      `Negative control expected CLI exit 16, observed ${result.status}. Inspect artifacts/terminals/${nonce}.diagnostics.txt for startup or connection errors.`);
     assert.ok(result.stdout.includes(`FIELD_NOTES_48_${nonce}`),
       "The negative control must actually compute 48, not just fail to find a prompt.");
     assert.ok(!result.stdout.includes(marker), "Input echo or stale output incorrectly satisfied the assertion.");

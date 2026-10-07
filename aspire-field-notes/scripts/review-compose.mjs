@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const directory = resolve(process.argv[2] ?? "artifacts/compose");
+const reviewPath = resolve(directory, "review.json");
+rmSync(reviewPath, { force: true });
+const composePath = resolve(directory, "docker-compose.yaml");
+const composeHash = () => createHash("sha256").update(readFileSync(composePath)).digest("hex");
+const composeSha256 = composeHash();
 const result = spawnSync("docker", [
-  "compose", "-f", resolve(directory, "docker-compose.yaml"),
+  "compose", "-f", composePath,
   "config", "--no-interpolate", "--format", "json",
 ], { encoding: "utf8", timeout: 30_000 });
 if (result.error || result.status !== 0) {
@@ -34,7 +40,9 @@ assert.ok(placeholders.split(/\r?\n/).includes("POSTGRES_PASSWORD="),
   "The publish-only exercise requires an empty Postgres secret placeholder, not a saved secret value.");
 assert.ok(postgres.environment.POSTGRES_PASSWORD === "${POSTGRES_PASSWORD}",
   "The generated Postgres service must reference its secret placeholder.");
-writeFileSync(resolve(directory, "review.json"), JSON.stringify({
+assert.equal(composeHash(), composeSha256, "Compose changed during review; run the review again.");
+writeFileSync(reviewPath, JSON.stringify({
+  composeSha256,
   services: Object.keys(model.services),
   apiDataPath: api.environment.DATA_PATH,
   stateVolume: api.volumes.find((volume) => volume.target === "/data"),

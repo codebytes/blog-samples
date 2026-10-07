@@ -1,6 +1,6 @@
 # Aspire Field Notes: runnable companions
 
-One small catalog app, six exercises, **Aspire 13.6.0**. These samples are separate
+One small catalog app, six exercises, **Aspire 13.6.1**. These samples are separate
 from the older [`aspire-cli`](../aspire-cli/) collection.
 
 | Article | Runnable exercise |
@@ -16,11 +16,12 @@ from the older [`aspire-cli`](../aspire-cli/) collection.
 
 - .NET 10 SDK. `global.json` allows newer .NET 10 feature bands.
 - Node.js 20.19+ or 22.12+ and npm; Node 22 or 24 LTS is recommended.
-- Docker with a running Linux container engine and Docker Compose v2. Aspire's
+- Docker with a running Linux container engine and Docker Compose v2 or later
+  (`docker compose` plugin). Aspire's
   PostgreSQL integration supplies its own database client; no host `psql` is needed.
 - Bash, `curl`, and `tar` for the Mac/Linux scripts. Windows users can run these
   commands in a WSL environment with the same prerequisites.
-- Aspire CLI **13.6.0**, matching the pinned AppHost SDK and integrations.
+- Aspire CLI **13.6.1**, matching the pinned AppHost SDK and integrations.
 
 All commands below run from `aspire-field-notes/`. Ports are discovered, not fixed.
 The sample uses local HTTP and deliberately has no authentication. Do not expose
@@ -29,10 +30,8 @@ the dashboard, REPL, or application to untrusted users.
 ## Quick start
 
 ```bash
-cd aspire-field-notes
-
-# Optional when 13.6.0 is already installed. This verifies the release SHA-512 and
-# installs into ignored .tools/, without upgrading a global CLI.
+# Optional when 13.6.1 is already installed. Verify against the platform SHA-512
+# pinned in the script, then install into ignored .tools/.
 bash scripts/install-cli.sh
 
 # Generate a local secret once, or preserve the existing secret without printing it.
@@ -50,6 +49,12 @@ node scripts/smoke.mjs healthy
 
 `scripts/aspire.sh` rejects a mismatched CLI. It uses `.tools/aspire`, then an
 installed `aspire`, or an explicit executable path in `ASPIRE_BIN`.
+The installer pins the reviewed 13.6.1 hashes for macOS/Linux, ARM64/x64 and aborts
+before extraction on a mismatch. This is an integrity check against a committed
+reference, not a separate publisher-signature verification. Downloads allow slow
+links but fail if throughput stays below 1 KiB/s for 60 seconds.
+The global CLI binary is unchanged, but the local CLI still writes shared
+`~/.aspire` state, including bundles, dashboard runs, and logs.
 `check.sh` builds both AppHosts and the services, runs .NET and Node tests, restores
 the committed npm lockfile, and builds the frontend. It does not start services.
 
@@ -58,17 +63,24 @@ Open **web** using the dashboard URL printed by `start`, or inspect its current 
 ```bash
 bash scripts/aspire.sh describe \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
-  --format Json --non-interactive
+  --format Table --non-interactive
 ```
 
 In 13.6, `aspire ps` lists running **AppHosts**; `aspire describe` lists their
 **resources**. Always select the AppHost explicitly in this multi-AppHost repository.
-Do not share raw `describe` output without reviewing its configuration fields.
+Use the table format for a resource inventory. **Do not print or share raw
+`describe --format Json` output:** its API environment can expose the PostgreSQL
+password embedded in `ConnectionStrings__catalogdb` and `CATALOGDB_URI`, even when
+standalone secret parameters are redacted. The smoke scripts consume JSON
+internally and extract only resource state and URLs; they do not print it.
 
 The smoke script waits for actual health, calls the browser's same-origin
 `/api/catalog` route once, checks the response shape, and asserts a PostgreSQL span
 plus exactly one correlated API-to-inventory HTTP call. It saves console logs,
-structured logs, spans, and the request result under ignored `artifacts/`.
+structured logs, spans, and the request result under ignored `artifacts/`, including
+when a response assertion fails. Failure messages identify the mode, expected
+status, trace ID, and evidence directory. If no trace was returned, a unique
+`<mode>-no-trace-<id>/` directory retains the available evidence instead.
 Its short telemetry-export wait does **not** retry the business request.
 
 ### If nuget.org is unreachable
@@ -119,12 +131,12 @@ preview is needed to run this core sample.
 | `Inventory:FaultEnabled` | AppHost Boolean, default `false`; shell form `Inventory__FaultEnabled` |
 | `Diagnostics:EnableRepl` | AppHost Boolean, default `false`; only enables the server REPL in run mode |
 | `DATA_PATH` | Injected by `WithVolume("catalog-state", "/data", env: "DATA_PATH")`, not manually invented by the API |
-| `Deployment:Target` | Must explicitly be `compose` in publish mode; other targets are rejected |
+| `Deployment:Target` | Must explicitly be `compose` in publish mode; non-`compose` values are rejected in run mode too |
 
 The API fails at startup when its region, database reference, inventory reference,
 or absolute data directory is missing. Malformed retained JSON is an error, not a
-silent reset. Note writes accept `{"message":"a benign note"}` (1-256 non-blank
-characters). They return `{ "instanceId": "...", "state": { "message": "...",
+silent reset. Note writes accept `{"message":"a benign note"}` (non-blank, at most
+256 characters). They return `{ "instanceId": "...", "state": { "message": "...",
 "revision": 1, "updatedUtc": "..." } }`.
 
 This is intentionally a single-writer teaching file store, not a multi-replica
@@ -135,6 +147,17 @@ volume unless you also change the database user's password.
 `--isolated` randomizes ports and copies user secrets for the run. It does not mean
 "erase all storage." Reuse the same AppHost path and resource/volume names for the
 retention exercise; different worktree paths have their own workload storage.
+For this project the file store is under
+`catalog/Catalog.AppHost/obj/.aspire/volumes/.../state.json`. Deleting `obj` or
+running `git clean -fdX` removes that ignored application data.
+
+Dashboard history is different: it lives in `~/.aspire/dashboard/runs`, keyed by
+application name **Catalog**, and is shared across checkouts with that name.
+Those checkouts share the limit of 10 unpinned runs. Structured logs, spans, and
+resource history are retained; console logs are retained only if their resource's
+**Console logs** page was viewed in the dashboard while the run was live.
+CLI `aspire logs` and the smoke export save independent evidence but do not
+activate dashboard console-log persistence.
 
 ## Cleanup
 
@@ -151,10 +174,20 @@ storage. Removing these is a separate, destructive choice; no exercise deletes t
 
 ## Version and deployment boundaries
 
-The Node resource's `WithTerminal()` and the frontend's
-`PublishAsStaticWebsite()` are experimental 13.6 APIs; their diagnostics are
-acknowledged narrowly at the call sites. PostgreSQL's `WithRepl()` is opt-in.
+The Node resource's `WithTerminal()` is experimental in 13.6.
+`PublishAsStaticWebsite()` dates from 13.3 behind `ASPIREJAVASCRIPT001` and is still
+experimental in 13.6. Diagnostics are acknowledged narrowly at the call sites.
+Its `StripPrefix` default is `false`; the sample sets it explicitly to document
+the `/api` routing contract. PostgreSQL's `WithRepl()` is opt-in.
 Docker Compose is the only modeled deployment target. `publish.sh compose` emits
 and reviews artifacts; it does not build images, run Compose, provision cloud
-resources, or change access permissions. See the deployment exercise before
-treating published files as a production deployment.
+resources, or change access permissions. Review the generated image tags as well
+as routing, secrets, and volumes; a stable Aspire package does not imply every
+generated base image is stable. With 13.6.1, `web.Dockerfile` still uses
+`node:22-slim` to build and `mcr.microsoft.com/dotnet/nightly/yarp:2.3-preview` to
+serve; Compose uses `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6`.
+Review those nightly/preview tags before any real deployment. See the deployment
+exercise before treating published files as a production deployment.
+
+The exercises stay pinned to 13.6.1. If a newer-version notification appears in
+the dashboard, ignore it for this reproduction rather than mixing tool versions.

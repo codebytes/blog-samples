@@ -35,11 +35,14 @@ only calls `/api/catalog` and `/api/state`.
 # Demonstrate the fail-fast proxy contract without starting another server.
 node --test tests/scripts.test.mjs
 
-bash scripts/aspire.sh describe --apphost "$apphost" --format Json --non-interactive
+bash scripts/aspire.sh describe --apphost "$apphost" --format Table --non-interactive
 ```
 
 Compare the current API URL with the `API_BASE_URL` environment entry for **web**
 in the dashboard. Do not copy secrets or the entire environment into a report.
+Raw `describe --format Json` can expose the password embedded in the API's
+`ConnectionStrings__catalogdb` and `CATALOGDB_URI`; parameter redaction does not
+make those fields safe. Use the table inventory above.
 In the browser's Network panel, a catalog request goes to the **web origin**, not
 a hard-coded API port. Open the smoke check's `spans.json`: the trace begins at
 the instrumented API and includes inventory and the database; Vite does not emit

@@ -85,10 +85,10 @@ app.MapPost("/api/state", async (
 {
     if (string.IsNullOrWhiteSpace(request.Message) || request.Message.Length > 256)
     {
-        logger.LogWarning("Rejected state write: message must contain 1-256 non-blank characters.");
+        logger.LogWarning("Rejected state write: message must be non-blank, at most 256 characters.");
         return Results.ValidationProblem(new Dictionary<string, string[]>
         {
-            ["message"] = ["Supply 1-256 non-blank characters."]
+            ["message"] = ["Supply a non-blank message, at most 256 characters."]
         });
     }
 

@@ -13,9 +13,12 @@ var api = builder.AddProject<Projects.Catalog_Api>("api")
     .WaitFor(inventory);
 ```
 
-In run mode, `DATA_PATH` is a workload-scoped host directory under Aspire's local
-store. In the published container model, it is `/data`. The API uses that one key,
-not separate "developer" and "production" path branches.
+In run mode, `DATA_PATH` is a workload-scoped host directory under
+`catalog/Catalog.AppHost/obj/.aspire/volumes/`. The retained file is
+`.../state.json` beneath that directory. Deleting `obj` or running
+`git clean -fdX` wipes this ignored application data. In the published container
+model, the path is `/data`. The API uses that one key, not separate "developer"
+and "production" path branches.
 
 ## Prove retention rather than infer it from a volume declaration
 
@@ -43,9 +46,9 @@ In the frontend, **Save note** sends:
 {"message":"Retained after a restart"}
 ```
 
-The file is `state.json` inside `DATA_PATH`. The sample serializes writes within
-one process and replaces the file atomically. It does not claim coordination
-between multiple API replicas.
+The message must be non-blank, at most 256 characters. The file is `state.json`
+inside `DATA_PATH`. The sample serializes writes within one process and replaces
+the file atomically. It does not claim coordination between multiple API replicas.
 
 ## Fail fast and keep credentials stable
 
@@ -80,9 +83,13 @@ automatically understands .NET connection-string aliases.
 
 | State | Example here | Surviving restart means |
 | --- | --- | --- |
-| Diagnostic history | Dashboard runs, logs, spans | Old evidence remains inspectable |
+| Diagnostic history | `~/.aspire/dashboard/runs`, keyed by **Catalog** | Structured logs, spans, and resource history remain; console logs require live dashboard viewing |
 | Application data | `DATA_PATH/state.json`, PostgreSQL rows | The actual application values remain |
 | Deployment state | Target pipeline records and generated artifacts | A separate deployment lifecycle, not app data |
 
 No cloud deployment state is created by this exercise. Finish with the scoped
-`stop` command; retention is not a backup strategy.
+`stop` command; retention is not a backup strategy. Unlike the project-local file
+store, dashboard runs are shared across Catalog checkouts and count toward the
+same 10-unpinned-run limit. CLI log exports do not activate dashboard console
+retention; follow the [live-viewing step](../01-keep-the-failing-run/) before
+stopping a run whose console output you want retained there.

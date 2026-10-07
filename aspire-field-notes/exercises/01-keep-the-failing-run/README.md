@@ -30,24 +30,38 @@ stale successful rows left on screen after a failed load.
 ## Keep the evidence before recovery
 
 The smoke script prints a trace ID and an `artifacts/fault-<trace-id>/` directory.
-It already captures console logs, structured logs, and spans. To explore manually:
+It captures console logs, structured logs, and spans even if a response assertion
+fails. These exported files are separate from dashboard persistence.
+To explore manually:
 
 ```bash
-bash scripts/aspire.sh describe --apphost "$apphost" --format Json --non-interactive
+bash scripts/aspire.sh describe --apphost "$apphost" --format Table --non-interactive
 bash scripts/aspire.sh logs api --apphost "$apphost" --tail 40 --non-interactive
 bash scripts/aspire.sh logs inventory --apphost "$apphost" --tail 40 --non-interactive
 bash scripts/aspire.sh otel traces api --apphost "$apphost" --has-error --non-interactive
 
-# Substitute the trace ID printed by the smoke check.
-trace_id=REPLACE_WITH_TRACE_ID
+# Assign the printed trace ID to trace_id in your shell before these commands.
+: "${trace_id:?Set trace_id to the trace ID printed by the fault smoke check}"
 bash scripts/aspire.sh otel spans --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
 bash scripts/aspire.sh otel logs --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
 ```
 
-In the dashboard, open **Select run**, then **Pin run** on the failing live run.
-The run contains the failure logs, spans, and resource history. Aspire 13.6 **run
-mode retains old runs by default**; pinning is a retention choice, not the switch
-that turns history on. Avoid cleaning the AppHost store between these steps.
+Before pinning or stopping, open the dashboard's **Console logs** page for **api**
+and then for **inventory** while the failing run is live, and check that each
+shows its 503 message. Console-log persistence starts when that resource is
+viewed in the dashboard. `aspire logs` and the smoke artifact export do **not**
+activate it.
+
+Open the run selector in the dashboard header, which shows **Live run**, and
+select **Pin run** on the failing run. Structured logs, spans, and resource history
+are retained; console logs are retained only for resources viewed as described
+above. Aspire 13.6 **run mode retains old runs by default**; pinning is a retention
+choice, not the switch that turns history on.
+
+History lives in `~/.aspire/dashboard/runs` and is keyed by application name
+**Catalog**, not by checkout path. Other Catalog checkouts count toward the same
+10 unpinned runs. Do not clean that shared history between these steps. This is
+separate from application files under the AppHost's `obj/.aspire/volumes/`.
 
 ## Recover, then compare
 
@@ -58,10 +72,12 @@ Inventory__FaultEnabled=false bash scripts/aspire.sh start \
 node scripts/smoke.mjs recovery
 ```
 
-Open the new dashboard URL. Use **Select run** to compare the pinned failure with
-the new live run. The same call path now has 200 responses and three products;
-the old failure is still inspectable. Historical resources are evidence, not live
-processes that can be restarted.
+Open the new dashboard URL. Use the header's run selector to compare the pinned
+failure with **Live run**. Verify the old trace and structured logs, plus the
+**api** and **inventory** console logs you viewed before stopping. The same call
+path now has 200 responses and three products; the old failure remains
+inspectable. Historical resources are evidence, not live processes that can be
+restarted.
 
 This is a controlled recovery experiment: disabling an intentional configuration
 fault demonstrates recovery, not diagnosis of an unknown bug. Finish with the

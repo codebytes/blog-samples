@@ -19,7 +19,10 @@ export function aspire(args, timeout = 40_000) {
 }
 
 export function endpoints() {
-  const { resources } = JSON.parse(aspire(["describe", "--format", "Json"]));
+  const output = aspire(["describe", "--format", "Json"]);
+  if (!output.trim()) throw new Error("No running catalog AppHost");
+  const { resources } = JSON.parse(output);
+  if (!resources?.length) throw new Error("No running catalog AppHost");
   const result = {};
   for (const name of ["api", "inventory", "web"]) {
     const resource = resources.find((item) => item.displayName === name);

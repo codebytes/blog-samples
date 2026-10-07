@@ -50,7 +50,7 @@ var web = builder.AddViteApp("web", "../web")
     .WithExternalHttpEndpoints()
     .WaitFor(api);
 
-#pragma warning disable ASPIREJAVASCRIPT001 // The 13.6 static website publisher is experimental.
+#pragma warning disable ASPIREJAVASCRIPT001 // PublishAsStaticWebsite is still experimental in 13.6.
 web.PublishAsStaticWebsite("/api", api, options => options.StripPrefix = false);
 #pragma warning restore ASPIREJAVASCRIPT001
 

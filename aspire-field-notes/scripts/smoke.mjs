@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { relative, resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { aspire, endpoints, jsonRequest, root } from "./apphost.mjs";
+import { aspire, endpoints, root } from "./apphost.mjs";
 
 export function assertTrace(spans, traceId, status) {
   assert.ok(spans.length > 0, "The request's trace has not arrived.");
@@ -26,54 +27,93 @@ export function assertTrace(spans, traceId, status) {
 
 async function smoke(mode) {
   assert.ok(["healthy", "fault", "recovery"].includes(mode), "Usage: node scripts/smoke.mjs healthy|fault|recovery");
-  for (const resource of ["catalogdb", "inventory", "api", "web"]) {
-    aspire(["wait", resource, "--status", "healthy", "--timeout", "120"], 135_000);
-  }
-  const urls = endpoints();
-  for (const url of Object.values(urls)) {
-    const health = await fetch(new URL("/health", url), { signal: AbortSignal.timeout(10_000) });
-    assert.equal(health.status, 200, "Health must stay green, including during the business-request fault.");
-    assert.equal(await health.text(), "Healthy");
-  }
-
-  const { response, body } = await jsonRequest(urls.web, "/api/catalog");
-  const status = mode === "fault" ? 503 : 200;
-  assert.equal(response.status, status);
-  assert.match(body.traceId, /^[a-f0-9]{32}$/);
-  if (mode === "fault") {
-    assert.equal(body.dependencyStatus, 503);
-    assert.equal(body.title, "Inventory unavailable");
-  } else {
-    assert.equal(body.items.length, 3);
-    assert.deepEqual(body.items.map((item) => item.sku), ["mug", "notebook", "sticker"]);
-    assert.deepEqual(body.items.map((item) => item.quantity), [8, 12, 30]);
-    assert.ok(body.items.every((item) => typeof item.price === "number" && item.price > 0));
-    assert.ok(body.region.length > 0);
-  }
-
+  const expectedStatus = mode === "fault" ? 503 : 200;
+  const request = { mode, expectedStatus, status: null, traceId: null, body: null };
+  let directory = resolve(root, "artifacts", `${mode}-no-trace-${randomUUID()}`);
   let spans = [];
-  // Wait only for asynchronous telemetry export; never retry the business request.
-  for (let attempt = 0; attempt < 10; attempt++) {
-    spans = JSON.parse(aspire(["otel", "spans", "--trace-id", body.traceId, "--format", "Json"]));
-    if (spans.some((span) => span.source === "inventory" && span.kind === "Server") &&
-        spans.some((span) => span.source === "api" && span.kind === "Server")) break;
-    await setTimeout(1_000);
+  const failures = [];
+  const saveRequest = () => {
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(resolve(directory, "request.json"), JSON.stringify(request, null, 2));
+    writeFileSync(resolve(directory, "spans.json"), JSON.stringify(spans, null, 2));
+  };
+
+  try {
+    for (const resource of ["catalogdb", "inventory", "api", "web"]) {
+      aspire(["wait", resource, "--status", "healthy", "--timeout", "120"], 135_000);
+    }
+    const urls = endpoints();
+    for (const url of Object.values(urls)) {
+      const health = await fetch(new URL("/health", url), { signal: AbortSignal.timeout(10_000) });
+      assert.equal(health.status, 200, "Health must stay green, including during the business-request fault.");
+      assert.equal(await health.text(), "Healthy");
+    }
+
+    const response = await fetch(new URL("/api/catalog", urls.web), { signal: AbortSignal.timeout(10_000) });
+    request.status = response.status;
+    request.body = await response.text();
+    const body = JSON.parse(request.body);
+    request.body = body;
+    if (typeof body?.traceId === "string" && /^[a-f0-9]{32}$/.test(body.traceId)) {
+      request.traceId = body.traceId;
+      directory = resolve(root, "artifacts", `${mode}-${request.traceId}`);
+    }
+    saveRequest();
+
+    if (request.traceId) {
+      // Wait only for asynchronous telemetry export; never retry the business request.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        spans = JSON.parse(aspire(["otel", "spans", "--trace-id", request.traceId, "--format", "Json"]));
+        saveRequest();
+        if (spans.some((span) => span.source === "inventory" && span.kind === "Server") &&
+            spans.some((span) => span.source === "api" && span.kind === "Server")) break;
+        await setTimeout(1_000);
+      }
+    }
+
+    assert.equal(response.status, expectedStatus,
+      `${mode}: expected HTTP ${expectedStatus}, observed HTTP ${response.status}.`);
+    assert.ok(request.traceId, "The catalog response must include a valid trace ID.");
+    if (mode === "fault") {
+      assert.equal(body.dependencyStatus, 503);
+      assert.equal(body.title, "Inventory unavailable");
+    } else {
+      assert.equal(body.items.length, 3);
+      assert.deepEqual(body.items.map((item) => item.sku), ["mug", "notebook", "sticker"]);
+      assert.deepEqual(body.items.map((item) => item.quantity), [8, 12, 30]);
+      assert.ok(body.items.every((item) => typeof item.price === "number" && item.price > 0));
+      assert.ok(body.region.length > 0);
+    }
+    assertTrace(spans, request.traceId, expectedStatus);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    saveRequest();
+    const captures = ["api", "inventory"].map(resource =>
+      [`${resource}-console`, ["logs", resource, "--tail", "40", "--format", "Json"]]);
+    if (request.traceId) {
+      captures.push(["structured-logs", ["otel", "logs", "--trace-id", request.traceId, "--format", "Json"]]);
+    }
+    for (const [name, args] of captures) {
+      try {
+        writeFileSync(resolve(directory, `${name}.json`), aspire(args));
+      } catch (error) {
+        writeFileSync(resolve(directory, `${name}.error.txt`), error.message);
+        failures.push(new Error(`Could not capture ${name}; see ${name}.error.txt.`, { cause: error }));
+      }
+    }
   }
-  assertTrace(spans, body.traceId, status);
-  const directory = resolve(root, "artifacts", `${mode}-${body.traceId}`);
-  mkdirSync(directory, { recursive: true });
-  writeFileSync(resolve(directory, "request.json"), JSON.stringify({ mode, status, body }, null, 2));
-  writeFileSync(resolve(directory, "spans.json"), JSON.stringify(spans, null, 2));
-  for (const resource of ["api", "inventory"]) {
-    writeFileSync(resolve(directory, `${resource}-console.json`),
-      aspire(["logs", resource, "--tail", "40", "--format", "Json"]));
+
+  const evidence = relative(root, directory);
+  if (failures.length) {
+    throw new AggregateError(failures,
+      `FAIL ${mode}: expected HTTP ${expectedStatus}, observed ${request.status ?? "no response"}; trace ${request.traceId ?? "unavailable"}; evidence: ${evidence}/`);
   }
-  writeFileSync(resolve(directory, "structured-logs.json"),
-    aspire(["otel", "logs", "--trace-id", body.traceId, "--format", "Json"]));
-  console.log(`PASS ${mode}: HTTP ${status}, healthy resources, Postgres read, one correlated inventory call.`);
-  console.log(`Trace ${body.traceId}; evidence: artifacts/${mode}-${body.traceId}/`);
+  console.log(`PASS ${mode}: HTTP ${expectedStatus}, healthy resources, Postgres read, one correlated inventory call.`);
+  console.log(`Trace ${request.traceId}; evidence: ${evidence}/`);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && existsSync(process.argv[1]) &&
+    realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   await smoke(process.argv[2]);
 }
