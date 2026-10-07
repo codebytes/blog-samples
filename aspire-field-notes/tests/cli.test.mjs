@@ -158,6 +158,68 @@ test("terminal negative control reports a missing AppHost before the assertion",
   }
 });
 
+for (const output of ["", " \n\t"]) {
+  test(`empty successful console capture creates error artifacts (${JSON.stringify(output)})`, async t => {
+    const cli = mockAspire(fixture(t), {
+      wait: { status: 7, stderr: "No running AppHost found.\n" },
+      "logs api": { stdout: output },
+      "logs inventory": { stdout: output },
+    });
+    const result = await run(process.execPath, ["scripts/smoke.mjs", "healthy"], { ASPIRE_BIN: cli });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /FAIL healthy: expected HTTP 200, observed no response/);
+    const path = result.stderr.match(/evidence: (artifacts\/healthy-no-trace-[a-f0-9-]+)\//)?.[1];
+    assert.ok(path);
+    const directory = resolve(root, path);
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    for (const resource of ["api", "inventory"]) {
+      assert.ok(!existsSync(join(directory, `${resource}-console.json`)),
+        "Empty output is not a valid JSON evidence file.");
+      assert.match(readFileSync(join(directory, `${resource}-console.error.txt`), "utf8"),
+        /Aspire returned empty output/);
+    }
+  });
+}
+
+for (const scenario of ["expected", "no-computation", "echoed-success"]) {
+  test(`exit-16 terminal diagnostics stay in artifacts without weakening assertions (${scenario})`, async t => {
+    const directory = fixture(t);
+    const usedTape = join(directory, "used-tape.txt");
+    const cli = executable(directory, "aspire", `
+      import { readFileSync, writeFileSync } from "node:fs";
+      const args = process.argv.slice(2);
+      if (args[0] === "--version") {
+        console.log("13.6.1");
+      } else {
+        const path = args[args.indexOf("--tape-file") + 1];
+        writeFileSync(${JSON.stringify(usedTape)}, path);
+        const nonce = readFileSync(path, "utf8").match(/FIELD_NOTES_42_([a-f0-9]{16})/)[1];
+        if (${JSON.stringify(scenario)} !== "no-computation") console.log("FIELD_NOTES_48_" + nonce);
+        if (${JSON.stringify(scenario)} === "echoed-success") console.log("FIELD_NOTES_42_" + nonce);
+        console.error("Tape playback failed: expected-42 output not found.");
+        process.exitCode = 16;
+      }
+    `);
+    const result = await run(process.execPath, ["scripts/terminal-smoke.mjs", "--negative-control"], { ASPIRE_BIN: cli });
+    const path = readFileSync(usedTape, "utf8");
+    t.after(() => {
+      for (const extension of ["tape", "screen.txt", "diagnostics.txt"]) {
+        rmSync(path.replace(/\.tape$/, `.${extension}`));
+      }
+    });
+    assert.doesNotMatch(result.stderr, /Tape playback failed/);
+    assert.match(readFileSync(path.replace(/\.tape$/, ".diagnostics.txt"), "utf8"), /Tape playback failed/);
+    if (scenario === "expected") {
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /PASS negative control/);
+      assert.equal(result.stderr, "");
+    } else {
+      assert.equal(result.status, 1, "Expected exit 16 alone does not prove the negative control.");
+      assert.match(result.stderr, scenario === "no-computation" ? /actually compute 48/ : /incorrectly satisfied/);
+    }
+  });
+}
+
 test("installer rejects altered bytes before extracting or replacing the existing CLI", async t => {
   const directory = fixture(t);
   mkdirSync(join(directory, "scripts"));

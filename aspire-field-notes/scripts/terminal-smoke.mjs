@@ -39,7 +39,7 @@ if (process.argv[1] && existsSync(process.argv[1]) &&
   writeFileSync(resolve(directory, `${nonce}.screen.txt`), result.stdout ?? "", { flag: "wx" });
   writeFileSync(resolve(directory, `${nonce}.diagnostics.txt`), result.stderr ?? "", { flag: "wx" });
   if (negativeControl && !result.error) {
-    if (result.stderr) console.error(result.stderr);
+    if (result.stderr && result.status !== 16) console.error(result.stderr);
     assert.equal(result.status, 16,
       `Negative control expected CLI exit 16, observed ${result.status}. Inspect artifacts/terminals/${nonce}.diagnostics.txt for startup or connection errors.`);
     assert.ok(result.stdout.includes(`FIELD_NOTES_48_${nonce}`),

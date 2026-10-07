@@ -41,10 +41,14 @@ bash scripts/aspire.sh logs inventory --apphost "$apphost" --tail 40 --non-inter
 bash scripts/aspire.sh otel traces api --apphost "$apphost" --has-error --non-interactive
 
 # Assign the printed trace ID to trace_id in your shell before these commands.
-: "${trace_id:?Set trace_id to the trace ID printed by the fault smoke check}"
-bash scripts/aspire.sh otel spans --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
-bash scripts/aspire.sh otel logs --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
+: "${trace_id:?Set trace_id to the trace ID printed by the fault smoke check}" && \
+  bash scripts/aspire.sh otel spans --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive && \
+  bash scripts/aspire.sh otel logs --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
 ```
+
+Keep that guard and both telemetry commands as one `&&` chain. In interactive
+Bash or zsh, a failing standalone guard does not prevent subsequently pasted
+commands from running; an empty `--trace-id` can return unfiltered telemetry.
 
 Before pinning or stopping, open the dashboard's **Console logs** page for **api**
 and then for **inventory** while the failing run is live, and check that each
@@ -53,10 +57,13 @@ viewed in the dashboard. `aspire logs` and the smoke artifact export do **not**
 activate it.
 
 Open the run selector in the dashboard header, which shows **Live run**, and
-select **Pin run** on the failing run. Structured logs, spans, and resource history
-are retained; console logs are retained only for resources viewed as described
-above. Aspire 13.6 **run mode retains old runs by default**; pinning is a retention
-choice, not the switch that turns history on.
+select **Pin run** on the failing run. Spans and structured logs are retained for
+every run, within telemetry retention limits. The latest resource snapshot exists
+only if the dashboard was opened in a browser during that run. Console logs are
+retained only for resources viewed or exported live in the dashboard, as described
+above. A headless run can have traces and structured logs but show **No resources
+found** when reopened. Aspire 13.6 **run mode retains old runs by default**;
+pinning is a retention choice, not the switch that turns history on.
 
 History lives in `~/.aspire/dashboard/runs` and is keyed by application name
 **Catalog**, not by checkout path. Other Catalog checkouts count toward the same

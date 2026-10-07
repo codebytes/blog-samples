@@ -22,6 +22,11 @@ The AppHost applies `WithRepl()` to **`postgres`**, not `catalogdb`. The CLI pri
 in the **dashboard dock**; it does not attach your current shell. The client
 initially connects to the `postgres` database.
 
+If you open the dashboard after running the CLI command, the terminal dock may
+be hidden. Press the unmodified **backtick** key (physical **Backquote**) in the
+dashboard to toggle the dock. If focus is in terminal input, press **F6** first
+to move focus to the terminal controls, then press backtick.
+
 Use **postgres > Actions > REPL** in the dashboard as an **alternative** to the
 CLI command, not an additional step. Doing both creates two clients, and each
 needs its own `\q`.
@@ -80,16 +85,31 @@ bash scripts/aspire.sh terminal tape play node-repl \
 
 The template's `RUN_NONCE` is replaced by the helper, not by Aspire. Do not reuse
 a generated nonce for a meaningful repeatability check. To inspect a session,
-use `bash scripts/aspire.sh terminal attach node-repl --apphost "$terminal_apphost"` and detach
-with **Ctrl+B D**; the process remains running.
+use `bash scripts/aspire.sh terminal attach node-repl --apphost "$terminal_apphost" --viewer`
+and detach with **Ctrl+B D**; the process remains running. `--viewer` watches
+without driving the shared terminal's dimensions.
 
-A peer attaching from a tiny window can resize the shared PTY. The fresh marker
-needs about 32 columns (the default is 160); wrapping can break the output match.
-Detach the small viewer and restart this resource before retrying:
+A default attach takes the **primary** role and drives the shared PTY's
+dimensions. A peer attaching from a tiny window can therefore shrink it. The
+fresh marker needs about 32 columns (the default is 160); wrapping can break the
+output match. Detach the small peer, attach again from a normal-size terminal
+window (at least 32 columns), then press **Ctrl+B D**:
 
 ```bash
-bash scripts/aspire.sh resource node-repl restart --apphost "$terminal_apphost" --non-interactive
+bash scripts/aspire.sh terminal attach node-repl --apphost "$terminal_apphost"
+# After detaching with Ctrl+B D:
+node scripts/terminal-smoke.mjs
+```
+
+Do not use `--viewer` for that recovery attach: it does not resize the PTY.
+Restarting only `node-repl` can preserve the reduced size. Alternatively, stop
+and start this **Terminal AppHost** to restore the configured 160x30 dimensions:
+
+```bash
+bash scripts/aspire.sh stop --apphost "$terminal_apphost" --non-interactive
+bash scripts/aspire.sh start --apphost "$terminal_apphost" --isolated --non-interactive
 bash scripts/aspire.sh wait node-repl --apphost "$terminal_apphost" --status up --timeout 90 --non-interactive
+node scripts/terminal-smoke.mjs
 ```
 
 Playback success means the tape finished, not that arbitrary code or an entire
@@ -98,6 +118,8 @@ result on the screen. Changing `6*7` to `6*8` while keeping the expected result
 must fail with a bounded wait (CLI exit 16). The `--negative-control` helper does
 exactly that and only passes if the screen actually contains the fresh computed
 48 and the expected-42 wait fails. A missing prompt is not an acceptable negative result.
+The expected exit-16 diagnostics are saved in the evidence file rather than
+printed as a red failure during a successful negative control.
 Startup or connection failures print the CLI's diagnostics before the assertion;
 an absent AppHost is not a successful negative control.
 

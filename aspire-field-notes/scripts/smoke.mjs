@@ -96,7 +96,11 @@ async function smoke(mode) {
     }
     for (const [name, args] of captures) {
       try {
-        writeFileSync(resolve(directory, `${name}.json`), aspire(args));
+        const output = aspire(args);
+        if (!output.trim()) {
+          throw new Error(`Aspire returned empty output for ${name}; the AppHost may no longer be running.`);
+        }
+        writeFileSync(resolve(directory, `${name}.json`), output);
       } catch (error) {
         writeFileSync(resolve(directory, `${name}.error.txt`), error.message);
         failures.push(new Error(`Could not capture ${name}; see ${name}.error.txt.`, { cause: error }));

@@ -153,9 +153,12 @@ running `git clean -fdX` removes that ignored application data.
 
 Dashboard history is different: it lives in `~/.aspire/dashboard/runs`, keyed by
 application name **Catalog**, and is shared across checkouts with that name.
-Those checkouts share the limit of 10 unpinned runs. Structured logs, spans, and
-resource history are retained; console logs are retained only if their resource's
-**Console logs** page was viewed in the dashboard while the run was live.
+Those checkouts share the limit of 10 unpinned runs. Spans and structured logs are
+retained for every run, within the telemetry retention limits. The latest resource
+snapshot exists only if the dashboard was opened in a browser during that run.
+Console logs are retained only for resources whose **Console logs** page was
+viewed or whose logs were exported live in the dashboard. A run never opened in
+the browser can therefore have traces and structured logs but no resource snapshot.
 CLI `aspire logs` and the smoke export save independent evidence but do not
 activate dashboard console-log persistence.
 

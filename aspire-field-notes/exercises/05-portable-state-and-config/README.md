@@ -83,13 +83,14 @@ automatically understands .NET connection-string aliases.
 
 | State | Example here | Surviving restart means |
 | --- | --- | --- |
-| Diagnostic history | `~/.aspire/dashboard/runs`, keyed by **Catalog** | Structured logs, spans, and resource history remain; console logs require live dashboard viewing |
+| Diagnostic history | `~/.aspire/dashboard/runs`, keyed by **Catalog** | Spans and structured logs remain; the latest resource snapshot requires opening the dashboard in a browser, and console logs require live viewing or export there |
 | Application data | `DATA_PATH/state.json`, PostgreSQL rows | The actual application values remain |
 | Deployment state | Target pipeline records and generated artifacts | A separate deployment lifecycle, not app data |
 
 No cloud deployment state is created by this exercise. Finish with the scoped
 `stop` command; retention is not a backup strategy. Unlike the project-local file
 store, dashboard runs are shared across Catalog checkouts and count toward the
-same 10-unpinned-run limit. CLI log exports do not activate dashboard console
-retention; follow the [live-viewing step](../01-keep-the-failing-run/) before
-stopping a run whose console output you want retained there.
+same 10-unpinned-run limit. A headless run may retain telemetry without a resource
+snapshot. CLI log exports do not activate dashboard console retention; follow the
+[live-viewing step](../01-keep-the-failing-run/) before stopping a run whose
+resource snapshot and console output you want retained there.
