@@ -1,0 +1,7 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.1">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>aspire-field-notes-terminals-13-6</UserSecretsId>
+  </PropertyGroup>
+</Project>
