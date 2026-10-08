@@ -43,7 +43,11 @@ aspire start \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
   --isolated --non-interactive
 
-node scripts/smoke.mjs healthy
+aspire wait web \
+  --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
+  --status healthy --timeout 120 --non-interactive
+aspire resource web load-catalog \
+  --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj --non-interactive
 ```
 
 Commands and helpers use the installed `aspire` CLI directly from `PATH`.
@@ -66,17 +70,29 @@ aspire describe \
 Use the table format for a resource inventory. **Do not print or share raw
 `describe --format Json` output:** its API environment can expose the PostgreSQL
 password embedded in `ConnectionStrings__catalogdb` and `CATALOGDB_URI`, even when
-standalone secret parameters are redacted. The smoke scripts consume JSON
+standalone secret parameters are redacted. The state helper consumes JSON
 internally and extract only resource state and URLs; they do not print it.
 
-The smoke script waits for actual health, calls the browser's same-origin
-`/api/catalog` route once, checks the response shape, and asserts a PostgreSQL span
-plus exactly one correlated API-to-inventory HTTP call. It saves console logs,
-structured logs, spans, and the request result under ignored `artifacts/`, including
-when a response assertion fails. Failure messages identify the mode, expected
-status, trace ID, and evidence directory. If no trace was returned, a unique
-`<mode>-no-trace-<id>/` directory retains the available evidence instead.
-Its short telemetry-export wait does **not** retry the business request.
+On the dashboard's **Resources** page, choose **Load catalog** on the **web** row.
+This is the same `load-catalog` resource command shown above. It sends one
+`GET /api/catalog` through the frontend's HTTP endpoint, not directly to the API.
+The notification reports success or failure; **View response** opens a JSON result
+with `status`, `traceId`, and `response` containing the original API JSON.
+A successful response contains three products. The configured inventory
+503 is a command failure whose message includes **503**, **Inventory unavailable**,
+and the trace ID. Neither the command nor the API retries the business request.
+The command's HTTP request times out after ten seconds.
+If the toast has disappeared, open **Notifications** to find **View response**.
+
+The CLI writes command status/error messages to stderr and that JSON result to stdout.
+Its success banner is generic; read `status` and `traceId` from the result.
+It exits zero on success and nonzero on failure. Readiness is checked separately
+with `aspire wait`; a healthy process can still return a failed business request.
+The command does not assert the trace structure for you: inspect its trace in the
+dashboard or with `aspire otel spans` as shown in [Walkthrough 01](walkthroughs/01-keep-the-failing-run/).
+Verify the API server span, exactly one HTTP client span to inventory, the
+inventory server span, and the PostgreSQL query. Pin the dashboard run to keep
+that evidence; the command does not create a local evidence folder.
 
 ### If nuget.org is unreachable
 
@@ -154,7 +170,7 @@ snapshot exists only if the dashboard was opened in a browser during that run.
 Console logs are retained only for resources whose **Console logs** page was
 viewed or whose logs were exported live in the dashboard. A run never opened in
 the browser can therefore have traces and structured logs but no resource snapshot.
-CLI `aspire logs` and the smoke export save independent evidence but do not
+CLI `aspire logs` can export independent evidence but does not
 activate dashboard console-log persistence.
 
 ## Cleanup
@@ -173,6 +189,8 @@ storage. Removing these is a separate, destructive choice; no walkthrough delete
 ## Version and deployment boundaries
 
 The Node resource's `WithTerminal()` is experimental in 13.6.
+The catalog's `WithHttpCommand`, `HttpCommandOptions`, and command-result APIs
+are not marked experimental in the pinned 13.6.1 hosting package.
 `PublishAsStaticWebsite()` dates from 13.3 behind `ASPIREJAVASCRIPT001` and is still
 experimental in 13.6. Diagnostics are acknowledged narrowly at the call sites.
 Its `StripPrefix` default is `false`; the sample sets it explicitly to document

@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -52,22 +50,19 @@ function run(command, args, environment = {}, input = "") {
   });
 }
 
-test("symlinked main modules execute instead of silently succeeding", async t => {
+test("the symlinked terminal entrypoint executes instead of silently succeeding", async t => {
   const directory = fixture(t);
   const alias = join(directory, "sample");
   symlinkSync(root, alias, "dir");
-  for (const script of ["smoke.mjs", "terminal-smoke.mjs"]) {
-    const result = await run(process.execPath, [join(alias, "scripts", script), "invalid-mode"]);
-    assert.equal(result.status, 1, `${script} skipped its main-module guard.`);
-    assert.match(result.stderr, /Usage: node scripts\//);
-  }
+  const result = await run(process.execPath, [join(alias, "scripts/terminal-smoke.mjs"), "invalid-mode"]);
+  assert.equal(result.status, 1, "The terminal helper skipped its main-module guard.");
+  assert.match(result.stderr, /Usage: node scripts\//);
 });
 
 test("helpers can still be imported from stdin without treating '-' as a file", async () => {
   const result = await run(process.execPath, ["--input-type=module", "-"], {}, `
-    import { assertTrace } from "./scripts/smoke.mjs";
     import { makeTape } from "./scripts/terminal-smoke.mjs";
-    if (typeof assertTrace !== "function" || typeof makeTape !== "function") throw new Error("Missing helper exports.");
+    if (typeof makeTape !== "function") throw new Error("Missing helper export.");
     console.log("Imported helpers without running a smoke check.");
   `);
   assert.equal(result.status, 0, result.stderr);
@@ -81,58 +76,6 @@ for (const output of ["", { resources: [] }]) {
     assert.equal(result.status, 1);
     assert.match(result.stderr, /No running catalog AppHost/);
     assert.doesNotMatch(result.stderr, /Unexpected end of JSON/);
-  });
-}
-
-for (const failConsoleCapture of [false, true]) {
-  test(`failed smoke retains request, spans, and all available logs (capture error: ${failConsoleCapture})`, async t => {
-    const directory = fixture(t);
-    const traceId = randomBytes(16).toString("hex");
-    const evidence = resolve(root, "artifacts", `healthy-${traceId}`);
-    t.after(() => rmSync(evidence, { recursive: true, force: true }));
-    let requests = 0;
-    const body = { title: "Inventory unavailable", dependencyStatus: 503, traceId };
-    const server = createServer((request, response) => {
-      if (request.url === "/health") {
-        response.end("Healthy");
-      } else {
-        requests++;
-        response.writeHead(503, { "Content-Type": "application/json" });
-        response.end(JSON.stringify(body));
-      }
-    });
-    await new Promise(resolveReady => server.listen(0, "127.0.0.1", resolveReady));
-    t.after(() => new Promise(resolveClosed => server.close(resolveClosed)));
-    const url = `http://127.0.0.1:${server.address().port}`;
-    const spans = [
-      { traceId, source: "api", kind: "Server" },
-      { traceId, source: "inventory", kind: "Server" },
-    ];
-    const cli = mockAspire(directory, {
-      wait: { stdout: "" },
-      describe: { stdout: { resources: ["api", "inventory", "web"].map(displayName => ({
-        displayName, state: "Running", healthStatus: "Healthy", urls: [{ name: "http", url }],
-      })) } },
-      "otel spans": { stdout: spans },
-      "otel logs": { stdout: [{ traceId, message: "Inventory returned 503" }] },
-      "logs api": failConsoleCapture
-        ? { status: 1, stderr: "Console capture unavailable" }
-        : { stdout: [{ message: "API received 503" }] },
-      "logs inventory": { stdout: [{ message: "Inventory returned 503" }] },
-    });
-    const result = await run(process.execPath, ["scripts/smoke.mjs", "healthy"], { ASPIRE_BIN: cli });
-    assert.equal(result.status, 1);
-    assert.equal(requests, 1, "Failure diagnostics must not retry the business request.");
-    assert.match(result.stderr, /FAIL healthy: expected HTTP 200, observed 503/);
-    assert.ok(result.stderr.includes(`trace ${traceId}`));
-    assert.ok(result.stderr.includes(`artifacts/healthy-${traceId}/`));
-    assert.deepEqual(JSON.parse(readFileSync(join(evidence, "request.json"), "utf8")), {
-      mode: "healthy", expectedStatus: 200, status: 503, traceId, body,
-    });
-    assert.deepEqual(JSON.parse(readFileSync(join(evidence, "spans.json"), "utf8")), spans);
-    assert.ok(existsSync(join(evidence, failConsoleCapture ? "api-console.error.txt" : "api-console.json")));
-    assert.ok(existsSync(join(evidence, "inventory-console.json")));
-    assert.ok(existsSync(join(evidence, "structured-logs.json")));
   });
 }
 
@@ -150,29 +93,6 @@ test("terminal negative control reports a missing AppHost before the assertion",
     rmSync(resolve(root, "artifacts/terminals", `${nonce}.${extension}`));
   }
 });
-
-for (const output of ["", " \n\t"]) {
-  test(`empty successful console capture creates error artifacts (${JSON.stringify(output)})`, async t => {
-    const cli = mockAspire(fixture(t), {
-      wait: { status: 7, stderr: "No running AppHost found.\n" },
-      "logs api": { stdout: output },
-      "logs inventory": { stdout: output },
-    });
-    const result = await run(process.execPath, ["scripts/smoke.mjs", "healthy"], { ASPIRE_BIN: cli });
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /FAIL healthy: expected HTTP 200, observed no response/);
-    const path = result.stderr.match(/evidence: (artifacts\/healthy-no-trace-[a-f0-9-]+)\//)?.[1];
-    assert.ok(path);
-    const directory = resolve(root, path);
-    t.after(() => rmSync(directory, { recursive: true, force: true }));
-    for (const resource of ["api", "inventory"]) {
-      assert.ok(!existsSync(join(directory, `${resource}-console.json`)),
-        "Empty output is not a valid JSON evidence file.");
-      assert.match(readFileSync(join(directory, `${resource}-console.error.txt`), "utf8"),
-        /Aspire returned empty output/);
-    }
-  });
-}
 
 for (const scenario of ["expected", "no-computation", "echoed-success"]) {
   test(`exit-16 terminal diagnostics stay in artifacts without weakening assertions (${scenario})`, async t => {

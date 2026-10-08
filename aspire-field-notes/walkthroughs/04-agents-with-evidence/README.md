@@ -15,7 +15,7 @@ whereas `standard` also writes `~/.agents/skills`. In addition,
 agents. `ASPIRE_CLI_TELEMETRY_OPTOUT=true` disables telemetry transmission while
 set; it **does not prevent hook registration**. Run this optional setup only if
 you accept those user-level configuration changes, or use an environment with a
-disposable user profile. It is not required for the smoke checks.
+disposable user profile. It is not required to run the resource command or checks.
 
 ```bash
 ASPIRE_CLI_TELEMETRY_OPTOUT=true aspire agent init \
@@ -48,7 +48,8 @@ node scripts/init-secret.mjs
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
 Inventory__FaultEnabled=true aspire start \
   --apphost "$apphost" --isolated --non-interactive
-node scripts/smoke.mjs fault
+aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire resource web load-catalog --apphost "$apphost" --non-interactive
 ```
 
 Give an agent this bounded task:
@@ -57,15 +58,26 @@ Give an agent this bounded task:
 > `catalog/Catalog.AppHost/Catalog.AppHost.csproj` explicitly. Explain the
 > configured `/api/catalog` failure using resource health, console/structured logs,
 > and the request's trace. Identify which HTTP server first returned 503 and show
-> the parent-child span chain. Run `node scripts/smoke.mjs fault` and report the
-> trace ID and evidence directory. Do not remove the fault, add retries, fake a
-> success response, weaken the assertions, provision cloud resources, or alter
-> another session's processes. Stop after the evidence report.
+> the parent-child span chain. Run `aspire resource web load-catalog --apphost
+> catalog/Catalog.AppHost/Catalog.AppHost.csproj --non-interactive` and report the
+> expected command failure, HTTP status, problem title, and trace ID. Use
+> `aspire otel spans --trace-id <returned-id> --apphost
+> catalog/Catalog.AppHost/Catalog.AppHost.csproj --format Json` and
+> `aspire otel logs --trace-id <returned-id> --apphost
+> catalog/Catalog.AppHost/Catalog.AppHost.csproj --format Json` to verify the API
+> server, exactly one inventory HTTP client, its inventory server child, and the
+> PostgreSQL query. Identify the pinned dashboard run that retains the evidence.
+> Do not remove the fault, add retries, fake a success response, skip the span
+> checks, provision cloud resources, or alter another session's processes.
+> Stop after the evidence report.
 
-The check proves that processes are healthy **and** the expected business request
-fails. A report saying only "the app started" or "all resources are green" is
-incomplete. With MCP enabled separately, select this AppHost before using resource,
-console-log, structured-log, trace, and trace-log tools.
+The command makes one request; it does not verify the trace for the agent.
+Its intentional **503** is a nonzero CLI exit, not an infrastructure startup
+failure. Use `aspire describe --apphost "$apphost" --format Table` to check health
+separately. A report saying only "the app started" or "all resources are green" is
+incomplete. Use the [live viewing and pinning steps](../01-keep-the-failing-run/)
+to retain resources and console logs along with the trace. With MCP enabled
+separately, select this AppHost before using the resource and telemetry tools.
 
 ## Repeatable regression checks
 
@@ -76,10 +88,10 @@ aspire stop --apphost "$apphost" --non-interactive
 bash scripts/check.sh
 ```
 
-The Node tests reject missing proxy configuration, terminal input-echo matches,
-broken trace propagation, UI-only failures, and concealed downstream retries.
-They also check symlinked script paths, failed-smoke evidence capture,
-missing-AppHost errors, and stale publication reviews.
+The Node tests reject missing proxy configuration and terminal input-echo matches.
+They also check the terminal's symlinked entrypoint, missing-AppHost errors, and
+stale publication reviews. Request-level success and the no-retry trace chain are
+checked using **Load catalog** and `aspire otel`, not inferred from unit tests.
 The .NET tests cover retained state, concurrent single-process writes, corrupt
 state, and missing configuration. Follow the separate [recovery walkthrough](../01-keep-the-failing-run/)
 to verify recovery explicitly; do not mislabel it as an agent repairing an unknown bug.

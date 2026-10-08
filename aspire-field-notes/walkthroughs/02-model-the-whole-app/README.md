@@ -8,7 +8,7 @@ aspire start --apphost "$apphost" --isolated --non-interactive
 aspire wait catalogdb --apphost "$apphost" --status healthy --timeout 120 --non-interactive
 aspire wait api --apphost "$apphost" --status healthy --timeout 120 --non-interactive
 aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
-node scripts/smoke.mjs healthy
+aspire resource web load-catalog --apphost "$apphost" --non-interactive
 ```
 
 Inspect [`AppHost.cs`](../../catalog/Catalog.AppHost/AppHost.cs), then open the
@@ -30,6 +30,8 @@ a catch-all HTML page mistaken for a readiness probe.
 The AppHost derives `API_BASE_URL` from `api.GetEndpoint("http")`. The Vite config
 uses that value **on the Node server** as the `/api` proxy target. The browser
 only calls `/api/catalog` and `/api/state`.
+The dashboard's **web > Load catalog** action also uses the web endpoint and
+returns the HTTP status, trace ID, and JSON response; it does not bypass Vite.
 
 ```bash
 # Demonstrate the fail-fast proxy contract without starting another server.
@@ -44,9 +46,17 @@ Raw `describe --format Json` can expose the password embedded in the API's
 `ConnectionStrings__catalogdb` and `CATALOGDB_URI`; parameter redaction does not
 make those fields safe. Use the table inventory above.
 In the browser's Network panel, a catalog request goes to the **web origin**, not
-a hard-coded API port. Open the smoke check's `spans.json`: the trace begins at
-the instrumented API and includes inventory and the database; Vite does not emit
-application spans in this sample.
+a hard-coded API port. Find the command's trace ID in the dashboard, or query it:
+
+```bash
+: "${trace_id:?Set trace_id to the trace ID returned by Load catalog}" && \
+  aspire otel spans --trace-id "$trace_id" --apphost "$apphost" --format Json --non-interactive
+```
+
+Verify the API server span, exactly one HTTP client span to inventory, its
+inventory server child, and the PostgreSQL query. Vite does not emit application
+spans in this sample. Follow [Walkthrough 01](../01-keep-the-failing-run/) to pin
+the run and retain the diagnostic evidence.
 
 Now run the [503 walkthrough](../01-keep-the-failing-run/). Its unchanged green health
 checks prove why configuration, readiness, and successful requests are different

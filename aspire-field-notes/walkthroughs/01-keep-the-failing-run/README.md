@@ -8,31 +8,35 @@ commands from `aspire-field-notes/`.
 ```bash
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
 aspire start --apphost "$apphost" --isolated --non-interactive
-node scripts/smoke.mjs healthy
+aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire resource web load-catalog --apphost "$apphost" --non-interactive
 
 aspire stop --apphost "$apphost" --non-interactive
 Inventory__FaultEnabled=true aspire start \
   --apphost "$apphost" --isolated --non-interactive
-node scripts/smoke.mjs fault
+aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire resource web load-catalog --apphost "$apphost" --non-interactive
 ```
 
-The second check expects **HTTP 503**, not 200. It first verifies the API, web, and
-inventory `/health` endpoints remain healthy. Then it verifies that the catalog
-request read PostgreSQL and made exactly one downstream HTTP request: the API
-server span parents an HTTP client span, which parents inventory's server span.
-All three HTTP spans report 503. Removing the call, changing the expected status,
-or adding retries is not a fix for this walkthrough.
+The healthy command succeeds with JSON containing `status: 200`, `traceId`, and
+`response.items` with three products. The second command deliberately **fails with HTTP 503**: its
+message includes **Inventory unavailable** and the trace ID, and its JSON body
+contains the problem details. The CLI exits nonzero for that expected failure;
+do not hide it or retry the request to force success.
 
-Open the current **web** URL from the dashboard and select **Load catalog**. The
-page shows the failure and its trace ID, not a made-up frontend error. There are no
-stale successful rows left on screen after a failed load.
+In the dashboard, the **web** row has a highlighted **Load catalog** action.
+Selecting it sends the same one-shot request through the frontend's `/api` proxy.
+The notification reports success or failure; **View response** opens the JSON
+result (`status`, `traceId`, and the API JSON under `response`); open
+**Notifications** if the toast has disappeared. Each click or
+CLI invocation creates a new request and trace. The frontend
+page's own **Load catalog** button remains available, but is a separate caller.
 
 ## Keep the evidence before recovery
 
-The smoke script prints a trace ID and an `artifacts/fault-<trace-id>/` directory.
-It captures console logs, structured logs, and spans even if a response assertion
-fails. These exported files are separate from dashboard persistence.
-To explore manually:
+Use the failed command's trace ID to locate the request in the dashboard's
+**Traces** page. The command does not export an evidence folder or automatically
+assert the span chain. Check the resource health and correlate the logs and spans:
 
 ```bash
 aspire describe --apphost "$apphost" --format Table --non-interactive
@@ -40,11 +44,25 @@ aspire logs api --apphost "$apphost" --tail 40 --non-interactive
 aspire logs inventory --apphost "$apphost" --tail 40 --non-interactive
 aspire otel traces api --apphost "$apphost" --has-error --non-interactive
 
-# Assign the printed trace ID to trace_id in your shell before these commands.
-: "${trace_id:?Set trace_id to the trace ID printed by the fault smoke check}" && \
+# Assign the trace ID returned by Load catalog to trace_id before these commands.
+: "${trace_id:?Set trace_id to the trace ID returned by Load catalog}" && \
   aspire otel spans --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive && \
   aspire otel logs --apphost "$apphost" --trace-id "$trace_id" --format Json --non-interactive
 ```
+
+Confirm all four parts of the same trace:
+
+| Span | What to verify |
+| --- | --- |
+| API server, `GET /api/catalog` | The returned trace ID and HTTP 503 |
+| API HTTP client, `GET` with `url.full` ending in `/inventory` | Exactly one attempt; its `parentSpanId` matches the API server's `spanId`; HTTP 503 |
+| Inventory server, `GET /inventory` | Its `parentSpanId` matches that HTTP client's `spanId`; HTTP 503 |
+| PostgreSQL client query | `db.namespace=catalogdb` and the `SELECT ... FROM catalog_items` query |
+
+`aspire describe` should still show **Healthy** for API, inventory, web, and the
+database. Health and successful business requests are different claims. Telemetry
+export is asynchronous: if the spans have not arrived yet, repeat the telemetry
+query, not **Load catalog**, so you keep inspecting the same request.
 
 Keep that guard and both telemetry commands as one `&&` chain. In interactive
 Bash or zsh, a failing standalone guard does not prevent subsequently pasted
@@ -53,8 +71,7 @@ commands from running; an empty `--trace-id` can return unfiltered telemetry.
 Before pinning or stopping, open the dashboard's **Console logs** page for **api**
 and then for **inventory** while the failing run is live, and check that each
 shows its 503 message. Console-log persistence starts when that resource is
-viewed in the dashboard. `aspire logs` and the smoke artifact export do **not**
-activate it.
+viewed in the dashboard. CLI `aspire logs` does **not** activate it.
 
 Open the run selector in the dashboard header, which shows **Live run**, and
 select **Pin run** on the failing run. Spans and structured logs are retained for
@@ -64,6 +81,7 @@ retained only for resources viewed or exported live in the dashboard, as describ
 above. A headless run can have traces and structured logs but show **No resources
 found** when reopened. Aspire 13.6 **run mode retains old runs by default**;
 pinning is a retention choice, not the switch that turns history on.
+The pinned run is the walkthrough's evidence record.
 
 History lives in `~/.aspire/dashboard/runs` and is keyed by application name
 **Catalog**, not by checkout path. Other Catalog checkouts count toward the same
@@ -76,13 +94,15 @@ separate from application files under the AppHost's `obj/.aspire/volumes/`.
 aspire stop --apphost "$apphost" --non-interactive
 Inventory__FaultEnabled=false aspire start \
   --apphost "$apphost" --isolated --non-interactive
-node scripts/smoke.mjs recovery
+aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire resource web load-catalog --apphost "$apphost" --non-interactive
 ```
 
 Open the new dashboard URL. Use the header's run selector to compare the pinned
 failure with **Live run**. Verify the old trace and structured logs, plus the
 **api** and **inventory** console logs you viewed before stopping. The same call
-path now has 200 responses and three products; the old failure remains
+path now has 200 responses and three products. Verify its new trace has the same
+four-part call chain and exactly one inventory HTTP attempt; the old failure remains
 inspectable. Historical resources are evidence, not live processes that can be
 restarted.
 

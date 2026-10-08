@@ -25,14 +25,24 @@ and "production" path branches.
 ```bash
 apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
 aspire start --apphost "$apphost" --isolated --non-interactive
-node scripts/smoke.mjs healthy
+aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire resource web load-catalog --apphost "$apphost" --non-interactive
 node scripts/state-smoke.mjs write
 
 aspire stop --apphost "$apphost" --non-interactive
 aspire start --apphost "$apphost" --isolated --non-interactive
-node scripts/smoke.mjs healthy
+aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire resource web load-catalog --apphost "$apphost" --non-interactive
 node scripts/state-smoke.mjs verify
 ```
+
+Each **Load catalog** invocation should succeed with HTTP 200, three products,
+and its own trace ID. Verify the API server, one inventory HTTP client and its
+inventory server child, and PostgreSQL query in the dashboard or with
+`aspire otel spans --trace-id "$trace_id" --apphost "$apphost" --format Json`.
+Set `trace_id` from the command response first. Pin a dashboard run to retain
+request evidence, using the [capture steps](../01-keep-the-failing-run/).
+The state helper below tests application data, not diagnostic-history retention.
 
 The write check posts a fresh benign note to `/api/state`, reads it back, and
 checks that a rejected blank write does not mutate state. It records the expected
