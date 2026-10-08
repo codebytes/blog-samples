@@ -30,6 +30,13 @@ All commands below run from `aspire-field-notes/`. Ports are discovered, not fix
 The sample uses local HTTP and deliberately has no authentication. Do not expose
 the dashboard, REPL, or application to untrusted users.
 
+## Get the code
+
+```bash
+git clone https://github.com/codebytes/blog-samples.git
+cd blog-samples/aspire-field-notes
+```
+
 ## Quick start
 
 ```bash

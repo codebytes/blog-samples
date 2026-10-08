@@ -49,6 +49,7 @@ apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
 Inventory__FaultEnabled=true aspire start \
   --apphost "$apphost" --isolated --non-interactive
 aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
+aspire describe --apphost "$apphost" --format Table --non-interactive
 aspire resource web load-catalog --apphost "$apphost" --non-interactive
 ```
 
@@ -78,6 +79,24 @@ separately. A report saying only "the app started" or "all resources are green" 
 incomplete. Use the [live viewing and pinning steps](../01-keep-the-failing-run/)
 to retain resources and console logs along with the trace. With MCP enabled
 separately, select this AppHost before using the resource and telemetry tools.
+
+Give the agent a narrow slice of telemetry, not the whole store. This lists only
+the API's recent failing traces:
+
+```bash
+aspire otel traces api --apphost "$apphost" --has-error --limit 5 --non-interactive
+```
+
+Discover a resource's commands before relying on one. The resource's **Actions**
+menu in the dashboard shows the same list:
+
+```bash
+aspire resource api --help --apphost "$apphost"
+```
+
+Even the stable `AddProject` resource lists `rebuild`, `restart`, and `stop`.
+`restart` does not recompile source code; use `rebuild` after changing a
+resource's code, then wait for readiness again.
 
 ## Repeatable regression checks
 

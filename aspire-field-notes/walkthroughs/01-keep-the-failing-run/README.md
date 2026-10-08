@@ -110,4 +110,18 @@ This is a controlled recovery experiment: disabling an intentional configuration
 fault demonstrates recovery, not diagnosis of an unknown bug. Finish with the
 collection's scoped `stop` command.
 
+## Optional: a standalone dashboard that resumes
+
+The AppHost-launched dashboard above uses `Run` mode. A standalone dashboard
+defaults to `None`. To continue one standalone dashboard database across
+restarts, keep the application name, data directory, and mode the same:
+
+```bash
+aspire dashboard run --application-name catalog-notes --persistence Resume
+```
+
+`Resume` continues one database. It does not give you the run selector used
+above for before-and-after comparison, and only one process can write a resumed
+database at a time.
+
 Reference: [Aspire dashboard data persistence](https://aspire.dev/dashboard/data-persistence/).
