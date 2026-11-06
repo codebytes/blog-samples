@@ -21,10 +21,10 @@ from the older [`aspire-cli`](../aspire-cli/) collection.
   PostgreSQL integration supplies its own database client; no host `psql` is needed.
 - Bash for the Mac/Linux helper scripts. Windows users can run these
   commands in a WSL environment with the same prerequisites.
-- **Aspire CLI 13.6 or later (the latest release is recommended)**, available as
+- **Aspire CLI 13.6.4**, available as
   `aspire` on `PATH`.
   See the [official CLI installation instructions](https://aspire.dev/get-started/install-cli/).
-  The AppHost SDK and integration packages remain pinned to 13.6.1.
+  The AppHost SDK and stable integration packages are also pinned to 13.6.4.
 
 All commands below run from `aspire-field-notes/`. Ports are discovered, not fixed.
 The sample uses local HTTP and deliberately has no authentication. Do not expose
@@ -39,17 +39,31 @@ cd blog-samples/aspire-field-notes
 
 ## Quick start
 
+Prepare the local PostgreSQL secret once. This preserves an existing value without
+printing or rotating it:
+
 ```bash
-# Generate a local secret once, or preserve the existing secret without printing it.
 node scripts/init-secret.mjs
+```
 
-# Stop this sample's AppHosts before building their assemblies.
-bash scripts/check.sh
+Then start the catalog:
 
-aspire start \
-  --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
-  --isolated --non-interactive
+```bash
+apphost=catalog/Catalog.AppHost/Catalog.AppHost.csproj
+aspire start --apphost "$apphost" --isolated
+```
 
+In the dashboard, wait for **web** to become **Healthy**, open its HTTP endpoint,
+and click **Load catalog** in the frontend. The `apphost` variable is just a reusable
+path for later commands. `--isolated` keeps the run isolated from other checkouts;
+`--non-interactive` is not needed for this human-driven path.
+
+### Optional CLI verification
+
+These commands automate readiness and the catalog request. They are useful for
+scripts, not additional steps required to start the application:
+
+```bash
 aspire wait web \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
   --status healthy --timeout 120 --non-interactive
@@ -61,10 +75,8 @@ Commands and helpers use the installed `aspire` CLI directly from `PATH`.
 For test fixtures, helpers honor `ASPIRE_BIN` as an executable override. No helper installs or
 upgrades the CLI. Aspire still writes shared `~/.aspire` state, including bundles,
 dashboard runs, and logs.
-`check.sh` builds both AppHosts and the services, runs .NET and Node tests, restores
-the committed npm lockfile, and builds the frontend. It does not start services.
 
-Open **web** using the dashboard URL printed by `start`, or inspect its current URL:
+To inspect resource state and the current **web** URL from the terminal:
 
 ```bash
 aspire describe \
@@ -101,6 +113,19 @@ Verify the API server span, exactly one HTTP client span to inventory, the
 inventory server span, and the PostgreSQL query. Pin the dashboard run to keep
 that evidence; the command does not create a local evidence folder.
 
+### Check source changes
+
+Stop only a sample AppHost you started before running the build and test suite:
+
+```bash
+aspire stop --apphost "$apphost" --non-interactive
+bash scripts/check.sh
+```
+
+`check.sh` builds both AppHosts and the services, runs .NET and Node tests, restores
+the committed npm lockfile, and builds the frontend. It does not start services
+and is not required on every launch.
+
 ### If nuget.org is unreachable
 
 Do not disable certificate validation. An optional configuration uses Microsoft's
@@ -115,6 +140,45 @@ bash scripts/check.sh
 Keep that environment variable for subsequent Aspire builds in this shell if
 necessary. This does not alter machine-wide NuGet configuration or the installed
 Aspire CLI.
+
+For `aspire update`, `RestoreConfigFile` covers the final MSBuild restore, not
+the CLI's package discovery. Point that invocation at the same public mirror:
+
+```bash
+RestoreConfigFile="$PWD/NuGet.public-mirror.config" \
+ASPIRE_CLI_NUGET_SERVICE_INDEX=https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-public/nuget/v3/index.json \
+  aspire update --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
+    --yes --non-interactive
+```
+
+The CLI emits an identity-override warning for this feed override. The command
+still uses the installed CLI and the stable channel; it does not select a
+prerelease or change global NuGet settings. Apply the same scoped override to
+the terminal AppHost update if needed.
+
+## Updating the pinned Aspire version
+
+Updating the installed CLI does not update either AppHost or the API's
+`Aspire.Npgsql` reference. For a deliberate collection upgrade, stop only the
+sample AppHosts you started, then run:
+
+```bash
+aspire update \
+  --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj --yes --non-interactive
+aspire update \
+  --apphost terminals/Terminal.AppHost/Terminal.AppHost.csproj --yes --non-interactive
+bash scripts/check.sh
+```
+
+These are maintenance commands, not a step to repeat during every walkthrough.
+Review the resulting package versions before running the app. The current
+baseline is 13.6.4 for both SDK references, all three catalog hosting
+integrations, and `Aspire.Npgsql`; unrelated dependency versions remain unchanged.
+
+The [13.6.4 patch](https://github.com/microsoft/aspire/releases/tag/v13.6.4)
+improves recovery from timed-out resource-creation requests and protects CLI
+diagnostic logs with owner-only permissions on Unix. Those logs can still
+contain dashboard login URLs or other sensitive data; review them before sharing.
 
 ## Shared app contract
 
@@ -131,10 +195,20 @@ The `Inventory__FaultEnabled=true` AppHost setting makes inventory return a real
 503 without killing the process or failing its self-health check. The API propagates
 that business failure. No HTTP resilience/retry handler conceals it.
 
-`web` receives an endpoint-derived `API_BASE_URL`; the browser only sees relative
-`/api/*` URLs. No connection strings or `VITE_*` infrastructure addresses are baked
+`web.WithReference(api)` supplies `API_HTTP`, which the Vite development proxy reads
+on the server; the browser only sees relative `/api/*` URLs.
+No connection strings or `VITE_*` infrastructure addresses are baked
 into the browser bundle. The .NET services explicitly configure OpenTelemetry;
 Vite does not magically acquire application spans from being in the resource graph.
+
+Validation of the 13.6.4 baseline covered the existing .NET and Node tests,
+the frontend production build, and the live catalog sequence: HTTP 200 with
+three products, the intentional HTTP 503 with healthy resources, then recovery
+to HTTP 200. Each resource-command trace had exactly one inventory HTTP attempt
+and the PostgreSQL query. Browser checks confirmed same-origin `/api/catalog`
+requests and the visible success/failure states. The state helper retained the
+same note across AppHost restarts; the terminal helper passed twice with fresh
+markers and passed its expected-failure control.
 
 The stable `Projects.Catalog_Api` and `Projects.Inventory_Api` metadata types come
 from the AppHost's project references. No Project V2, Java, Rust, or AI-provider
@@ -149,7 +223,13 @@ preview is needed to run this core sample.
 | `Inventory:FaultEnabled` | AppHost Boolean, default `false`; shell form `Inventory__FaultEnabled` |
 | `Diagnostics:EnableRepl` | AppHost Boolean, default `false`; only enables the server REPL in run mode |
 | `DATA_PATH` | Injected by `WithVolume("catalog-state", "/data", env: "DATA_PATH")`, not manually invented by the API |
+| `API_HTTP` | Supplied to `web` by its `api` resource reference; consumed only by the Vite development proxy |
 | `Deployment:Target` | Must explicitly be `compose` in publish mode; non-`compose` values are rejected in run mode too |
+
+The AppHost groups the API's region and state-volume settings separately from its
+request wiring. They are still required by the shared API; the
+[configuration/state walkthrough](walkthroughs/05-portable-state-and-config/)
+explains their purpose.
 
 The API fails at startup when its region, database reference, inventory reference,
 or absolute data directory is missing. Malformed retained JSON is an error, not a
@@ -197,7 +277,7 @@ storage. Removing these is a separate, destructive choice; no walkthrough delete
 
 The Node resource's `WithTerminal()` is experimental in 13.6.
 The catalog's `WithHttpCommand`, `HttpCommandOptions`, and command-result APIs
-are not marked experimental in the pinned 13.6.1 hosting package.
+are not marked experimental in the pinned 13.6.4 hosting package.
 `PublishAsStaticWebsite()` dates from 13.3 behind `ASPIREJAVASCRIPT001` and is still
 experimental in 13.6. Diagnostics are acknowledged narrowly at the call sites.
 Its `StripPrefix` default is `false`; the sample sets it explicitly to document
@@ -218,7 +298,7 @@ node scripts/review-compose.mjs artifacts/compose
 These commands do not build images, run Compose, provision cloud resources, or
 change access permissions. Review the generated image tags as well
 as routing, secrets, and volumes; a stable Aspire package does not imply every
-generated base image is stable. With the pinned 13.6.1 integrations, `web.Dockerfile` uses
+generated base image is stable. With the pinned 13.6.4 integrations, `web.Dockerfile` uses
 `node:22-slim` to build and `mcr.microsoft.com/dotnet/nightly/yarp:2.3-preview` to
 serve; Compose uses `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6`.
 Review those nightly/preview tags before any real deployment. See the deployment

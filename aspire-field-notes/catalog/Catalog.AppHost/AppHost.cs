@@ -37,15 +37,17 @@ var inventory = builder.AddProject<Projects.Inventory_Api>("inventory")
 var api = builder.AddProject<Projects.Catalog_Api>("api")
     .WithReference(catalogdb)
     .WithReference(inventory)
-    .WithEnvironment("Catalog__Region", region)
-    .WithVolume("catalog-state", "/data", env: "DATA_PATH")
     .WithHttpHealthCheck("/health")
     .WaitFor(catalogdb)
     .WaitFor(inventory);
 
+// Configuration/state walkthrough settings; the shared API requires both at startup.
+api.WithEnvironment("Catalog__Region", region)
+    .WithVolume("catalog-state", "/data", env: "DATA_PATH");
+
 var web = builder.AddViteApp("web", "../web")
     .WithNpm(installCommand: "ci")
-    .WithEnvironment("API_BASE_URL", api.GetEndpoint("http"))
+    .WithReference(api)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints()
     .WaitFor(api);
