@@ -78,7 +78,7 @@ listening, with the specific configuration error; a generic crash or timeout is
 not enough. Run `scripts/check.sh` first if those binaries are not built.
 The API requires `Catalog:Region`, `ConnectionStrings:catalogdb`, the inventory
 service reference, and an absolute `DATA_PATH`. The Vite development server
-requires an endpoint-derived `API_BASE_URL`. Corrupt retained state throws;
+requires `API_HTTP` from the AppHost's API reference. Corrupt retained state throws;
 neither component silently substitutes a made-up local dependency.
 
 `init-secret.mjs` stores a generated password with the AppHost's stable
