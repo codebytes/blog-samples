@@ -11,9 +11,10 @@ Browse the blog at [chris-ayers.com](https://chris-ayers.com/) for in-depth arti
 Each subdirectory contains a self-contained sample with its own README, prerequisites, and getting started instructions.
 
 | Collection | Description |
-|------------|-------------|
+| --- | --- |
 | [aspire-cli](aspire-cli/) | .NET Aspire CLI series - building, deploying, and debugging distributed applications |
-| [aspire-field-notes](aspire-field-notes/) | Aspire 13.6 catalog, debugging, terminal, agent, state, and publish-only deployment walkthroughs |
+| [aspire-field-notes](aspire-field-notes/) | Aspire 13.6 catalog, debugging, database REPL and terminal tapes, agent, state, and publish-only deployment walkthroughs |
+| [aspire-terminal-tape-lab](aspire-terminal-tape-lab/) | Standalone Aspire 13.6.4 Node terminal input/output and repeatable tape checks |
 
 ## Contributing
 
