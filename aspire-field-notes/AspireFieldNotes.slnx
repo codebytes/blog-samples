@@ -5,9 +5,6 @@
     <Project Path="catalog/Inventory.Api/Inventory.Api.csproj" />
     <Project Path="catalog/ServiceDefaults/ServiceDefaults.csproj" />
   </Folder>
-  <Folder Name="/terminals/">
-    <Project Path="terminals/Terminal.AppHost/Terminal.AppHost.csproj" />
-  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Catalog.Tests/Catalog.Tests.csproj" />
   </Folder>

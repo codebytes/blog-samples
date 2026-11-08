@@ -9,7 +9,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 
 export function makeTape(nonce) {
   assert.match(nonce, /^[a-f0-9]{16}$/);
-  const template = readFileSync(new URL("../terminals/node-smoke.tape", import.meta.url), "utf8");
+  const template = readFileSync(new URL("../node-smoke.tape", import.meta.url), "utf8");
   const tape = template.replaceAll("RUN_NONCE", nonce);
   const marker = `FIELD_NOTES_42_${nonce}`;
   const typed = tape.split("\n").find((line) => line.startsWith("Type "));
@@ -32,11 +32,12 @@ if (process.argv[1] && existsSync(process.argv[1]) &&
   writeFileSync(path, tape, { flag: "wx" });
   const result = spawnSync(process.env.ASPIRE_BIN || "aspire", [
     "terminal", "tape", "play", "node-repl",
-    "--apphost", resolve(root, "terminals/Terminal.AppHost/Terminal.AppHost.csproj"),
+    "--apphost", resolve(root, "Terminal.AppHost/Terminal.AppHost.csproj"),
     "--tape-file", path, "--timeout", "20", "--non-interactive", "--nologo",
   ], { cwd: root, encoding: "utf8", timeout: 35_000 });
   writeFileSync(resolve(directory, `${nonce}.screen.txt`), result.stdout ?? "", { flag: "wx" });
-  writeFileSync(resolve(directory, `${nonce}.diagnostics.txt`), result.stderr ?? "", { flag: "wx" });
+  const diagnostics = [result.stderr, result.error?.message].filter(Boolean).join("\n");
+  writeFileSync(resolve(directory, `${nonce}.diagnostics.txt`), diagnostics, { flag: "wx" });
   if (negativeControl && !result.error) {
     if (result.stderr && result.status !== 16) console.error(result.stderr);
     assert.equal(result.status, 16,
@@ -46,8 +47,9 @@ if (process.argv[1] && existsSync(process.argv[1]) &&
     assert.ok(!result.stdout.includes(marker), "Input echo or stale output incorrectly satisfied the assertion.");
     console.log("PASS negative control: Node computed 48; the expected-42 wait correctly failed (CLI exit 16).");
   } else if (result.error || result.status !== 0) {
-    console.error(result.stderr);
-    throw new Error(`Tape failed (exit ${result.status}). Inspect artifacts/terminals/${nonce}.*`);
+    if (result.stderr) console.error(result.stderr);
+    const reason = result.error?.message ?? `CLI exit ${result.status}`;
+    throw new Error(`Tape failed: ${reason}. Inspect artifacts/terminals/${nonce}.*`);
   } else {
     assert.ok(result.stdout.includes(marker), "Playback exited successfully without the computed output.");
     console.log(`PASS: Node computed 6*7=42 and emitted fresh marker ${marker}.`);

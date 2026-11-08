@@ -45,6 +45,33 @@ var api = builder.AddProject<Projects.Catalog_Api>("api")
 api.WithEnvironment("Catalog__Region", region)
     .WithVolume("catalog-state", "/data", env: "DATA_PATH");
 
+if (builder.ExecutionContext.IsRunMode)
+{
+    var image = postgres.Resource.Annotations.OfType<ContainerImageAnnotation>().Single();
+    var imageTag = image.Tag ?? throw new InvalidOperationException("The PostgreSQL diagnostic client requires a versioned server image.");
+#pragma warning disable ASPIRETERMINAL001 // Resource terminals are experimental in 13.6.
+    builder.AddContainer("psql-client", image.Image, imageTag)
+        .WithImageRegistry(image.Registry)
+        .WithEntrypoint("psql")
+        .WithArgs("-X", "-w", "-q", "-A", "-t", "-P", "pager=off",
+            "-v", "ON_ERROR_STOP=on", "-v", "PROMPT1=CATALOG_READY> ",
+            "-v", "PROMPT2=CATALOG_CONTINUE> ")
+        .WithEnvironment("PGHOST", postgres.Resource.Host)
+        .WithEnvironment("PGPORT", postgres.Resource.Port)
+        .WithEnvironment("PGDATABASE", catalogdb.Resource.DatabaseName)
+        .WithEnvironment("PGUSER", postgres.Resource.UserNameReference)
+        .WithEnvironment("PGPASSWORD", postgres.Resource.PasswordParameter)
+        .WithEnvironment("PGOPTIONS", "-c default_transaction_read_only=on -c statement_timeout=5000")
+        .WithEnvironment("PSQL_HISTORY", "/dev/null")
+        .WaitFor(api)
+        .WithTerminal(options =>
+        {
+            options.Columns = 160;
+            options.Rows = 30;
+        });
+#pragma warning restore ASPIRETERMINAL001
+}
+
 var web = builder.AddViteApp("web", "../web")
     .WithNpm(installCommand: "ci")
     .WithReference(api)

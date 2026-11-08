@@ -7,18 +7,34 @@ from the older [`aspire-cli`](../aspire-cli/) collection.
 | --- | --- |
 | 1. Keep the failing run | [A real downstream 503, correlated evidence, and recovery](walkthroughs/01-keep-the-failing-run/) |
 | 2. Model the whole app | [Configuration, readiness, and telemetry in a polyglot graph](walkthroughs/02-model-the-whole-app/) |
-| 3. Terminals and REPLs | [PostgreSQL diagnostics and a bounded Node terminal tape](walkthroughs/03-terminals-and-repls/) |
+| 3. Terminals and REPLs | [Inspect catalog data manually; optionally repeat the check with a psql terminal tape](walkthroughs/03-terminals-and-repls/) |
 | 4. Agents with evidence | [CLI guidance, explicit AppHost selection, and repeatable checks](walkthroughs/04-agents-with-evidence/) |
 | 5. Portable state and config | [A retained file, fail-fast configuration, and stable credentials](walkthroughs/05-portable-state-and-config/) |
 | 6. Choose your deployment | [Explicit Docker Compose publication and artifact assertions](walkthroughs/06-choose-your-deployment/) |
+
+For walkthrough 03, the main exercise is to open PostgreSQL's client from the
+dashboard and inspect a known-seed baseline: `catalogdb` should contain the mug,
+notebook, and sticker. It does not deliberately reproduce a catalog failure,
+and the query observes that client's database, not which database an API request
+used. Validate the API/frontend separately with the catalog request checks.
+The `psql-client` resource runs alongside the catalog in local mode. A checked-in
+tape can automate the same read-only check directly with the Aspire CLI, without
+a Node helper or generated tape. Each playback clears and verifies the screen
+before querying; a deliberately wrong-count negative control does not change data.
+The docked `WithRepl()` client remains available for the manual exercise.
+Node/42/tape playback lives in the separate
+[terminal tape lab](../aspire-terminal-tape-lab/), not a required second step or
+a catalog test.
 
 ## Prerequisites
 
 - .NET 10 SDK. `global.json` allows newer .NET 10 feature bands.
 - Node.js 20.19+ or 22.12+ and npm; Node 22 or 24 LTS is recommended.
-- Docker with a running Linux container engine and Docker Compose v2 or later
-  (`docker compose` plugin). Aspire's
+- Docker or Podman with a running Linux container engine. The deployment walkthrough
+  additionally requires Docker Compose v2 or later (`docker compose` plugin). Aspire's
   PostgreSQL integration supplies its own database client; no host `psql` is needed.
+  The catalog needs this container runtime for PostgreSQL, not for its native .NET
+  and Vite application projects.
 - Bash for the Mac/Linux helper scripts. Windows users can run these
   commands in a WSL environment with the same prerequisites.
 - **Aspire CLI 13.6.4**, available as
@@ -57,6 +73,12 @@ In the dashboard, wait for **web** to become **Healthy**, open its HTTP endpoint
 and click **Load catalog** in the frontend. The `apphost` variable is just a reusable
 path for later commands. `--isolated` keeps the run isolated from other checkouts;
 `--non-interactive` is not needed for this human-driven path.
+
+The **psql-client** terminal starts after API health/seeding, already connected to
+`catalogdb`, and stays running after tape playback. See
+[walkthrough 03](walkthroughs/03-terminals-and-repls/#optional-automate-the-same-inspection-with-a-resource-terminal)
+for direct tape commands. It exits only when you quit the client or stop the
+AppHost; there is no automatic reconnect loop.
 
 ### Optional CLI verification
 
@@ -122,7 +144,7 @@ aspire stop --apphost "$apphost" --non-interactive
 bash scripts/check.sh
 ```
 
-`check.sh` builds both AppHosts and the services, runs .NET and Node tests, restores
+`check.sh` builds the catalog AppHost and services, runs .NET and Node tests, restores
 the committed npm lockfile, and builds the frontend. It does not start services
 and is not required on every launch.
 
@@ -153,26 +175,23 @@ ASPIRE_CLI_NUGET_SERVICE_INDEX=https://pkgs.dev.azure.com/dnceng/public/_packagi
 
 The CLI emits an identity-override warning for this feed override. The command
 still uses the installed CLI and the stable channel; it does not select a
-prerelease or change global NuGet settings. Apply the same scoped override to
-the terminal AppHost update if needed.
+prerelease or change global NuGet settings.
 
 ## Updating the pinned Aspire version
 
-Updating the installed CLI does not update either AppHost or the API's
+Updating the installed CLI does not update the catalog AppHost or the API's
 `Aspire.Npgsql` reference. For a deliberate collection upgrade, stop only the
-sample AppHosts you started, then run:
+catalog AppHost you started, then run:
 
 ```bash
 aspire update \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj --yes --non-interactive
-aspire update \
-  --apphost terminals/Terminal.AppHost/Terminal.AppHost.csproj --yes --non-interactive
 bash scripts/check.sh
 ```
 
 These are maintenance commands, not a step to repeat during every walkthrough.
 Review the resulting package versions before running the app. The current
-baseline is 13.6.4 for both SDK references, all three catalog hosting
+baseline is 13.6.4 for the AppHost SDK, all three catalog hosting
 integrations, and `Aspire.Npgsql`; unrelated dependency versions remain unchanged.
 
 The [13.6.4 patch](https://github.com/microsoft/aspire/releases/tag/v13.6.4)
@@ -186,6 +205,7 @@ contain dashboard login URLs or other sensitive data; review them before sharing
 | --- | --- |
 | `postgres` | PostgreSQL 18.3, selected by the pinned integration; named data volume; optional `WithRepl()` |
 | `catalogdb` | Actual database containing three seeded `catalog_items` rows |
+| `psql-client` | Default local-run container terminal; uses the server image and managed connection settings; starts after API health/seeding; excluded from publish |
 | `inventory` | .NET service; `GET /inventory`, `/health`, `/alive`; opt-in request fault |
 | `api` | .NET API; `GET /api/catalog`, `GET/POST /api/state`, `/health`, `/alive` |
 | `web` | Vite frontend; `/health`; server-side development proxy for `/api` |
@@ -207,8 +227,7 @@ three products, the intentional HTTP 503 with healthy resources, then recovery
 to HTTP 200. Each resource-command trace had exactly one inventory HTTP attempt
 and the PostgreSQL query. Browser checks confirmed same-origin `/api/catalog`
 requests and the visible success/failure states. The state helper retained the
-same note across AppHost restarts; the terminal helper passed twice with fresh
-markers and passed its expected-failure control.
+same note across AppHost restarts.
 
 The stable `Projects.Catalog_Api` and `Projects.Inventory_Api` metadata types come
 from the AppHost's project references. No Project V2, Java, Rust, or AI-provider
@@ -265,8 +284,6 @@ activate dashboard console-log persistence.
 ```bash
 aspire stop \
   --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj --non-interactive
-aspire stop \
-  --apphost terminals/Terminal.AppHost/Terminal.AppHost.csproj --non-interactive
 ```
 
 Stop only an AppHost you started; do not use `--all` on a shared machine. Ordinary
@@ -275,7 +292,18 @@ storage. Removing these is a separate, destructive choice; no walkthrough delete
 
 ## Version and deployment boundaries
 
-The Node resource's `WithTerminal()` is experimental in 13.6.
+The default local-run `psql-client` resource's `WithTerminal()` is experimental in 13.6 and
+is excluded in publish mode. It requires the same container runtime as PostgreSQL,
+not a host `psql` install. Model, tape-preflight, and simulated-PTY checks are
+separate from live validation. With CLI 13.6.4 and Podman 6.1.4, the checked-in
+PostgreSQL tape passed twice on the same client; the wrong-count control returned
+exit 16 at its final PASS wait after the exact unchanged-data FAIL result.
+A read-only malformed-SKU query emitted only the fixed failure marker, and a
+subsequent catalog check still passed. The client stayed alive without restarting
+through playback; only the task-owned AppHost was stopped afterward.
+See [walkthrough 03](walkthroughs/03-terminals-and-repls/) for the two-run check,
+wrong-count control, and scoped cleanup.
+
 The catalog's `WithHttpCommand`, `HttpCommandOptions`, and command-result APIs
 are not marked experimental in the pinned 13.6.4 hosting package.
 `PublishAsStaticWebsite()` dates from 13.3 behind `ASPIREJAVASCRIPT001` and is still
