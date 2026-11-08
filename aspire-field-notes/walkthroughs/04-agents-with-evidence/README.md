@@ -3,45 +3,11 @@
 Use a dedicated checkout/worktree and the [sample prerequisites](../../README.md).
 Never share another session's checkout or stop unrelated AppHosts.
 
-## Optional guidance setup
+## Start the catalog
 
-Use the installed Aspire CLI directly. Setup installs the Aspire workflow skills;
-inspect the generated guidance before adopting it. Do not turn on remote skill
-fetching or override `aspireSkillsVersion` for this walkthrough.
-
-**Read before running:** `github` installs skill files into the selected workspace,
-whereas `standard` also writes `~/.agents/skills`. In addition,
-`agent init` registers user-level telemetry hooks for detected supported
-agents. `ASPIRE_CLI_TELEMETRY_OPTOUT=true` disables telemetry transmission while
-set; it **does not prevent hook registration**. Run this optional setup only if
-you accept those user-level configuration changes, or use an environment with a
-disposable user profile. It is not required to run the resource command or checks.
-
-```bash
-ASPIRE_CLI_TELEMETRY_OPTOUT=true aspire agent init \
-  --workspace-root "$PWD/catalog" \
-  --skill-locations github \
-  --skills aspire,aspire-init,aspireify,aspire-orchestration,aspire-monitoring,aspire-deployment,aspire-project-v2-migration \
-  --mcp=false --non-interactive
-```
-
-Explicit skill names avoid the unrelated optional tooling installs triggered by
-`--skills all`. `--mcp=false` skips new MCP configuration and does not remove
-existing connections. Setup can still rewrite deprecated `aspire mcp start`
-entries in the workspace's MCP files to `aspire agent mcp`.
-Inspect generated `catalog/.github/skills/` before adopting it; these files are
-ignored here. Re-running setup does not remove workflow skills from locations
-you later deselect. Playwright's same-run temporary-folder cleanup is not a
-general skill uninstall mechanism.
-Existing repository-wide guidance is historical: where examples differ, use the
-installed CLI's help and the commands verified in this collection. In particular,
-`describe --apphost ...` inspects resources; `ps` lists AppHosts.
-
-Tagged implementation references:
-[locations](https://github.com/microsoft/aspire/blob/v13.6.1/src/Aspire.Cli/Agents/SkillLocation.cs),
-[setup and hook registration](https://github.com/microsoft/aspire/blob/v13.6.1/src/Aspire.Cli/Commands/AgentInitCommand.cs).
-
-## A bounded investigation
+Use Aspire CLI and AppHost SDK **13.6.4**. Run from `aspire-field-notes/`;
+initialize the secret only if you have not completed the sample's setup.
+Stop only an earlier catalog run you own before starting this one.
 
 ```bash
 node scripts/init-secret.mjs
@@ -50,67 +16,143 @@ Inventory__FaultEnabled=true aspire start \
   --apphost "$apphost" --isolated --non-interactive
 aspire wait web --apphost "$apphost" --status healthy --timeout 120 --non-interactive
 aspire describe --apphost "$apphost" --format Table --non-interactive
-aspire resource web load-catalog --apphost "$apphost" --non-interactive
 ```
 
-Give an agent this bounded task:
+Wait for `web`, because the request uses its frontend proxy. A startup or
+readiness failure is a blocker, not the intended HTTP failure. Keep the table
+inventory; JSON environment values can expose database connection credentials.
 
-> Work only in this sample's checkout and select
-> `catalog/Catalog.AppHost/Catalog.AppHost.csproj` explicitly. Explain the
-> configured `/api/catalog` failure using resource health, console/structured logs,
-> and the request's trace. Identify which HTTP server first returned 503 and show
-> the parent-child span chain. Run `aspire resource web load-catalog --apphost
-> catalog/Catalog.AppHost/Catalog.AppHost.csproj --non-interactive` and report the
-> expected command failure, HTTP status, problem title, and trace ID. Use
-> `aspire otel spans --trace-id <returned-id> --apphost
-> catalog/Catalog.AppHost/Catalog.AppHost.csproj --format Json` and
-> `aspire otel logs --trace-id <returned-id> --apphost
-> catalog/Catalog.AppHost/Catalog.AppHost.csproj --format Json` to verify the API
-> server, exactly one inventory HTTP client, its inventory server child, and the
-> PostgreSQL query. Identify the pinned dashboard run that retains the evidence.
-> Do not remove the fault, add retries, fake a success response, skip the span
-> checks, provision cloud resources, or alter another session's processes.
-> Stop after the evidence report.
+## Give the agent one request
 
-The command makes one request; it does not verify the trace for the agent.
-Its intentional **503** is a nonzero CLI exit, not an infrastructure startup
-failure. Use `aspire describe --apphost "$apphost" --format Table` to check health
-separately. A report saying only "the app started" or "all resources are green" is
-incomplete. Use the [live viewing and pinning steps](../01-keep-the-failing-run/)
-to retain resources and console logs along with the trace. With MCP enabled
-separately, select this AppHost before using the resource and telemetry tools.
+You do not need to run **Load catalog** yourself first. Give the agent this task:
 
-Give the agent a narrow slice of telemetry, not the whole store. This lists only
-the API's recent failing traces:
+```text
+Work only in this sample's checkout. Use Aspire CLI 13.6.4 and select
+catalog/Catalog.AppHost/Catalog.AppHost.csproj explicitly.
+The catalog is running with Inventory__FaultEnabled=true.
+
+Inspect resource health with describe --format Table, then run once:
+aspire resource web load-catalog \
+  --apphost catalog/Catalog.AppHost/Catalog.AppHost.csproj \
+  --non-interactive
+Report its nonzero exit, HTTP status, problem title, and returned trace ID.
+
+Reject a missing or empty trace ID. Query aspire otel spans and
+aspire otel logs with --trace-id set to that ID, the same --apphost path,
+--format Json, and --non-interactive. If telemetry is incomplete, repeat
+only those queries for the same ID for at most 30 seconds.
+Do not rerun the request.
+
+Verify the API server, its successful PostgreSQL query, exactly one
+inventory HTTP client, and that client's inventory server child.
+Show span IDs, parent IDs, and HTTP statuses. Identify where 503
+originated and distinguish inventory's problem title from the API's.
+Correlate the fault setting with inventory and API warnings.
+
+Identify the pinned dashboard run retaining this request. If viewing
+or pinning needs a human action, report it as pending, not completed.
+Stop after the evidence report and name any missing checks.
+
+Do not edit code or configuration, disable the fault, add retries,
+fake success, weaken checks, deploy, reset databases, delete volumes,
+alter another session's processes, or reveal credentials.
+```
+
+**Expected:** one `GET /api/catalog` through `web` returns HTTP 503,
+`Inventory unavailable`, and a trace ID, with `dependencyStatus: 503`.
+The CLI exits nonzero. A different failure or a missing ID is a blocker;
+do not hide it with `|| true`. The command reports the response, not a verified
+trace. MCP is optional; select this AppHost before using its tools.
+
+## Check and retain the evidence
+
+To check the agent's report yourself, copy its actual returned trace ID.
+Do not create another request:
+
+```bash
+trace_id="<trace ID returned by Load catalog>"
+: "${trace_id:?Set trace_id to the trace ID returned by Load catalog}" && \
+  aspire otel spans --trace-id "$trace_id" --apphost "$apphost" \
+    --format Json --non-interactive && \
+  aspire otel logs --trace-id "$trace_id" --apphost "$apphost" \
+    --format Json --non-interactive
+```
+
+Keep the guard and both queries in one `&&` chain. In interactive Bash or zsh,
+a failed standalone guard does not stop later pasted commands; an empty
+`--trace-id` can return unfiltered telemetry. Export is asynchronous: if the
+first result is empty or incomplete, wait a few seconds and repeat these queries
+for the **same trace ID**, for at most 30 seconds. Do not invoke **Load catalog**
+again to fill in evidence; that creates a different request. After the deadline,
+report the missing spans or logs rather than claiming the expected chain was observed.
+
+The PostgreSQL query and inventory HTTP client must be children of the API
+server span; the inventory server must be a child of that client span.
+The database query succeeds while the three HTTP spans report 503.
+Inventory originates the failure with `Intentional inventory outage`;
+the API passes it back as `Inventory unavailable` without retrying.
+Both services stay healthy because the fault does not affect `/health`.
+
+Before the final handoff or stopping, follow the
+[live viewing and pinning steps](../01-keep-the-failing-run/).
+Open resource inventory and both API and inventory Console logs, then pin the
+failing run. CLI console-log reads do not retain those streams in dashboard
+history. If the agent cannot perform the dashboard actions, complete them
+yourself or report retained evidence as pending. Record the pinned run ID;
+CLI telemetry queries still read the live run, not a browser-selected history.
+
+If you need to locate a recent failure, limit the query:
 
 ```bash
 aspire otel traces api --apphost "$apphost" --has-error --limit 5 --non-interactive
 ```
 
-Discover a resource's commands before relying on one. The resource's **Actions**
-menu in the dashboard shows the same list:
-
-```bash
-aspire resource api --help --apphost "$apphost"
-```
-
-Even the stable `AddProject` resource lists `rebuild`, `restart`, and `stop`.
-`restart` does not recompile source code; use `rebuild` after changing a
-resource's code, then wait for readiness again.
-
 ## Repeatable regression checks
 
-Stop this sample's AppHosts before rebuilding:
+After retaining the evidence, stop only this run before optional regression checks:
 
 ```bash
 aspire stop --apphost "$apphost" --non-interactive
 bash scripts/check.sh
 ```
 
-The Node tests reject missing proxy configuration and terminal input-echo matches.
-They also check the terminal's symlinked entrypoint, missing-AppHost errors, and
-stale publication reviews. Request-level success and the no-retry trace chain are
-checked using **Load catalog** and `aspire otel`, not inferred from unit tests.
-The .NET tests cover retained state, concurrent single-process writes, corrupt
-state, and missing configuration. Follow the separate [recovery walkthrough](../01-keep-the-failing-run/)
-to verify recovery explicitly; do not mislabel it as an agent repairing an unknown bug.
+Node tests cover proxy/configuration and CLI/publication checks. .NET tests
+cover configuration, retained state, AppHost models, and tape/terminal mechanics.
+Neither replaces the live request and span checks above.
+Changing the fault is a separate [recovery exercise](../01-keep-the-failing-run/),
+not an agent repairing an unknown bug. For a later authorized code change,
+discover resource commands with `aspire resource api --help --apphost "$apphost"`;
+`rebuild` recompiles source, while `restart` does not.
+
+## Optional guidance setup
+
+Skip this if the agent already has Aspire guidance. Use the installed CLI;
+do not enable remote skill fetching or override `aspireSkillsVersion`.
+
+**Read before running:** `github` scopes skill files to the workspace, but
+`agent init` also registers user-level telemetry hooks for supported agents.
+`ASPIRE_CLI_TELEMETRY_OPTOUT=true` suppresses transmission while set; it does
+not prevent hook registration or disable later hooks. Accept those changes
+explicitly or use a disposable user profile.
+
+```bash
+ASPIRE_CLI_TELEMETRY_OPTOUT=true aspire agent init \
+  --workspace-root "$PWD/catalog" \
+  --skill-locations github \
+  --skills aspire,aspire-orchestration,aspire-monitoring \
+  --mcp=false --non-interactive
+```
+
+- Review generated `catalog/.github/skills/` before adoption; they are
+  ignored here.
+- `standard` also writes `~/.agents/skills`; `github` does not.
+- `--mcp=false` skips new MCP setup, not existing connections or deprecated
+  workspace configuration migrations.
+- Named skills avoid optional tooling selected by `--skills all`; deselecting
+  skills or locations is not a general uninstall.
+
+The installed CLI's help and this collection take precedence over historical
+repository guidance. Tagged 13.6.4 references:
+[locations](https://github.com/microsoft/aspire/blob/v13.6.4/src/Aspire.Cli/Agents/SkillLocation.cs),
+[setup](https://github.com/microsoft/aspire/blob/v13.6.4/src/Aspire.Cli/Commands/AgentInitCommand.cs),
+[user-level hooks](https://github.com/microsoft/aspire/blob/v13.6.4/src/Aspire.Cli/Agents/Hooks/TelemetryHookConfigurator.cs).
