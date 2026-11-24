@@ -10,7 +10,7 @@ The API seeds three products during startup; this exercise inspects those rows.
 It does not prove which database an API request used. API/frontend validation is
 a separate step.
 
-The collection uses Aspire **13.6.4**, native .NET and Vite app resources, and
+The collection uses native .NET and Vite app resources and
 containerized PostgreSQL. Complete the prerequisites and one-time secret setup
 in the [sample README](../../README.md). Run commands from `aspire-field-notes/`.
 

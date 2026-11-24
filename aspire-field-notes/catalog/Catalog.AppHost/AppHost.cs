@@ -30,11 +30,11 @@ if (builder.ExecutionContext.IsRunMode && builder.Configuration.GetValue<bool>("
 
 var catalogdb = postgres.AddDatabase("catalogdb");
 var faultEnabled = builder.Configuration.GetValue<bool>("Inventory:FaultEnabled");
-var inventory = builder.AddProject<Projects.Inventory_Api>("inventory")
+var inventory = builder.AddDotnetProject("inventory", "../Inventory.Api/Inventory.Api.csproj")
     .WithEnvironment("Inventory__FaultEnabled", faultEnabled ? "true" : "false")
     .WithHttpHealthCheck("/health");
 
-var api = builder.AddProject<Projects.Catalog_Api>("api")
+var api = builder.AddDotnetProject("api", "../Catalog.Api/Catalog.Api.csproj")
     .WithReference(catalogdb)
     .WithReference(inventory)
     .WithHttpHealthCheck("/health")
@@ -49,7 +49,6 @@ if (builder.ExecutionContext.IsRunMode)
 {
     var image = postgres.Resource.Annotations.OfType<ContainerImageAnnotation>().Single();
     var imageTag = image.Tag ?? throw new InvalidOperationException("The PostgreSQL diagnostic client requires a versioned server image.");
-#pragma warning disable ASPIRETERMINAL001 // Resource terminals are experimental in 13.6.
     builder.AddContainer("psql-client", image.Image, imageTag)
         .WithImageRegistry(image.Registry)
         .WithEntrypoint("psql")
@@ -69,7 +68,6 @@ if (builder.ExecutionContext.IsRunMode)
             options.Columns = 160;
             options.Rows = 30;
         });
-#pragma warning restore ASPIRETERMINAL001
 }
 
 var web = builder.AddViteApp("web", "../web")
@@ -79,9 +77,7 @@ var web = builder.AddViteApp("web", "../web")
     .WithExternalHttpEndpoints()
     .WaitFor(api);
 
-#pragma warning disable ASPIREJAVASCRIPT001 // PublishAsStaticWebsite is still experimental in 13.6.
 web.PublishAsStaticWebsite("/api", api, options => options.StripPrefix = false);
-#pragma warning restore ASPIREJAVASCRIPT001
 
 web.WithHttpCommand(
     path: "/api/catalog",

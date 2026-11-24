@@ -65,13 +65,11 @@ public sealed class PsqlClientModelTests
             "-v", "ON_ERROR_STOP=on", "-v", "PROMPT1=CATALOG_READY> ",
             "-v", "PROMPT2=CATALOG_CONTINUE> "], args.Cast<string>());
 
-        // TerminalAnnotation is internal in 13.6.4; inspect its public Options without starting resources.
+        // TerminalAnnotation is internal; inspect its public Options without starting resources.
         var terminal = Assert.Single(client.Annotations, annotation => annotation.GetType().Name == "TerminalAnnotation");
-#pragma warning disable ASPIRETERMINAL001 // Match the AppHost's experimental terminal configuration.
         var options = Assert.IsType<TerminalOptions>(terminal.GetType().GetProperty("Options")?.GetValue(terminal));
         Assert.Equal(160, options.Columns);
         Assert.Equal(30, options.Rows);
-#pragma warning restore ASPIRETERMINAL001
     }
 
     [Fact]

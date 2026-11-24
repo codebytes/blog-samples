@@ -28,7 +28,8 @@ a catalog test.
 
 ## Prerequisites
 
-- .NET 10 SDK. `global.json` allows newer .NET 10 feature bands.
+- .NET 10 SDK. `global.json` allows newer .NET 10 feature bands; the Part 5
+  restart check used **10.0.404**.
 - Node.js 20.19+ or 22.12+ and npm; Node 22 or 24 LTS is recommended.
 - Docker or Podman with a running Linux container engine. The deployment walkthrough
   additionally requires Docker Compose v2 or later (`docker compose` plugin). Aspire's
@@ -37,12 +38,16 @@ a catalog test.
   and Vite application projects.
 - Bash for the Mac/Linux helper scripts. Windows users can run these
   commands in a WSL environment with the same prerequisites.
-- **Aspire CLI 13.6.4**, available as
+- **Aspire CLI 17.0.0**, available as
   `aspire` on `PATH`.
   See the [official CLI installation instructions](https://aspire.dev/get-started/install-cli/).
-  The AppHost SDK and stable integration packages are also pinned to 13.6.4.
+  The C# AppHost uses `Microsoft.NET.Sdk` with `Aspire.Hosting.AppHost` and
+  the hosting integrations pinned to **17.0.0**.
 
-All commands below run from `aspire-field-notes/`. Ports are discovered, not fixed.
+All commands below run from `aspire-field-notes/`. Its `aspire.config.json`
+selects the catalog and disables default watch for this sample: Aspire 17 builds
+`AddDotnetProject` services itself, not through `dotnet watch`'s project graph.
+Ports are discovered, not fixed.
 The sample uses local HTTP and deliberately has no authentication. Do not expose
 the dashboard, REPL, or application to untrusted users.
 
@@ -52,6 +57,9 @@ the dashboard, REPL, or application to untrusted users.
 git clone https://github.com/codebytes/blog-samples.git
 cd blog-samples/aspire-field-notes
 ```
+
+If an article links a specific sample commit, check out that revision before
+starting; the default branch can be at a different version.
 
 ## Quick start
 
@@ -94,7 +102,7 @@ aspire resource web load-catalog \
 ```
 
 Commands and helpers use the installed `aspire` CLI directly from `PATH`.
-For test fixtures, helpers honor `ASPIRE_BIN` as an executable override. No helper installs or
+The state helper honors `ASPIRE_BIN` as an executable override. No helper installs or
 upgrades the CLI. Aspire still writes shared `~/.aspire` state, including bundles,
 dashboard runs, and logs.
 
@@ -112,7 +120,7 @@ Use the table format for a resource inventory. **Do not print or share raw
 `describe --format Json` output:** its API environment can expose the PostgreSQL
 password embedded in `ConnectionStrings__catalogdb` and `CATALOGDB_URI`, even when
 standalone secret parameters are redacted. The state helper consumes JSON
-internally and extract only resource state and URLs; they do not print it.
+internally to extract resource state and URLs; it does not print it.
 
 On the dashboard's **Resources** page, choose **Load catalog** on the **web** row.
 This is the same `load-catalog` resource command shown above. It sends one
@@ -190,20 +198,19 @@ bash scripts/check.sh
 ```
 
 These are maintenance commands, not a step to repeat during every walkthrough.
-Review the resulting package versions before running the app. The current
-baseline is 13.6.4 for the AppHost SDK, all three catalog hosting
-integrations, and `Aspire.Npgsql`; unrelated dependency versions remain unchanged.
-
-The [13.6.4 patch](https://github.com/microsoft/aspire/releases/tag/v13.6.4)
-improves recovery from timed-out resource-creation requests and protects CLI
-diagnostic logs with owner-only permissions on Unix. Those logs can still
-contain dashboard login URLs or other sensitive data; review them before sharing.
+Review the API and test packages separately; they are not AppHost build
+references. The current
+baseline is [17.0.0](https://github.com/microsoft/aspire/releases/tag/v17.0.0)
+for `Aspire.Hosting.AppHost`, `Aspire.Hosting.Dotnet`, the PostgreSQL, JavaScript
+and Docker hosting integrations, `Aspire.Npgsql`, and `Aspire.Hosting.Testing`.
+`AddDotnetProject` takes service project paths relative to the AppHost; it no
+longer needs the old `Aspire.AppHost.Sdk` or `Projects.*` service metadata.
 
 ## Shared app contract
 
 | Resource | Role and endpoints |
 | --- | --- |
-| `postgres` | PostgreSQL 18.3, selected by the pinned integration; named data volume; optional `WithRepl()` |
+| `postgres` | PostgreSQL 18.6, selected by the pinned integration; named data volume; optional `WithRepl()` |
 | `catalogdb` | Actual database containing three seeded `catalog_items` rows |
 | `psql-client` | Default local-run container terminal; uses the server image and managed connection settings; starts after API health/seeding; excluded from publish |
 | `inventory` | .NET service; `GET /inventory`, `/health`, `/alive`; opt-in request fault |
@@ -221,17 +228,10 @@ No connection strings or `VITE_*` infrastructure addresses are baked
 into the browser bundle. The .NET services explicitly configure OpenTelemetry;
 Vite does not magically acquire application spans from being in the resource graph.
 
-Validation of the 13.6.4 baseline covered the existing .NET and Node tests,
-the frontend production build, and the live catalog sequence: HTTP 200 with
-three products, the intentional HTTP 503 with healthy resources, then recovery
-to HTTP 200. Each resource-command trace had exactly one inventory HTTP attempt
-and the PostgreSQL query. Browser checks confirmed same-origin `/api/catalog`
-requests and the visible success/failure states. The state helper retained the
-same note across AppHost restarts.
-
-The stable `Projects.Catalog_Api` and `Projects.Inventory_Api` metadata types come
-from the AppHost's project references. No Project V2, Java, Rust, or AI-provider
-preview is needed to run this core sample.
+On the 17.0.0 baseline, **Load catalog** returned HTTP 200 with three products.
+The [state walkthrough](walkthroughs/05-portable-state-and-config/) proved that a
+blank write did not change the note and that after a restart a new API instance
+returned the same note, revision, and timestamp.
 
 ## Configuration and data
 
@@ -292,8 +292,8 @@ storage. Removing these is a separate, destructive choice; no walkthrough delete
 
 ## Version and deployment boundaries
 
-The default local-run `psql-client` resource's `WithTerminal()` is experimental in 13.6 and
-is excluded in publish mode. It requires the same container runtime as PostgreSQL,
+The local-run `psql-client` resource uses `WithTerminal()` and is excluded in
+publish mode. It requires the same container runtime as PostgreSQL,
 not a host `psql` install. Model, tape-preflight, and simulated-PTY checks are
 separate from live validation. With CLI 13.6.4 and Podman 6.1.4, the checked-in
 PostgreSQL tape passed twice on the same client; the wrong-count control returned
@@ -304,11 +304,8 @@ through playback; only the task-owned AppHost was stopped afterward.
 See [walkthrough 03](walkthroughs/03-terminals-and-repls/) for the two-run check,
 wrong-count control, and scoped cleanup.
 
-The catalog's `WithHttpCommand`, `HttpCommandOptions`, and command-result APIs
-are not marked experimental in the pinned 13.6.4 hosting package.
-`PublishAsStaticWebsite()` dates from 13.3 behind `ASPIREJAVASCRIPT001` and is still
-experimental in 13.6. Diagnostics are acknowledged narrowly at the call sites.
-Its `StripPrefix` default is `false`; the sample sets it explicitly to document
+`PublishAsStaticWebsite()` serves the frontend and preserves `/api`.
+The sample sets `StripPrefix` to `false` explicitly to document
 the `/api` routing contract. PostgreSQL's `WithRepl()` is opt-in.
 Docker Compose is the only modeled deployment target. Publish and review its
 artifacts directly:
@@ -326,10 +323,10 @@ node scripts/review-compose.mjs artifacts/compose
 These commands do not build images, run Compose, provision cloud resources, or
 change access permissions. Review the generated image tags as well
 as routing, secrets, and volumes; a stable Aspire package does not imply every
-generated base image is stable. With the pinned 13.6.4 integrations, `web.Dockerfile` uses
+generated base image is stable. With the pinned 17.0.0 integrations, `web.Dockerfile` uses
 `node:22-slim` to build and `mcr.microsoft.com/dotnet/nightly/yarp:2.3-preview` to
-serve; Compose uses `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6`.
+serve; Compose uses `mcr.microsoft.com/aspire/nightly/dashboard:17.0`.
 Review those nightly/preview tags before any real deployment. See the deployment
 walkthrough before treating published files as a production deployment.
 
-Keep the AppHost SDK and integration package versions pinned during the walkthroughs.
+Keep the CLI and Aspire package versions pinned during the walkthroughs.

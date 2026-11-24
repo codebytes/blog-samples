@@ -3,8 +3,7 @@
 Complete the prerequisites and one-time secret setup in the
 [sample README](../../README.md).
 
-This walkthrough targets Aspire CLI, AppHost SDK, and stable integrations
-**13.6.4**.
+Use the CLI and hosting package versions pinned in those prerequisites.
 
 Start the catalog if it is not already running:
 

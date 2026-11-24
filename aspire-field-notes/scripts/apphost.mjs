@@ -12,16 +12,20 @@ export function aspire(args, timeout = 40_000) {
     "--apphost", catalogAppHost, "--non-interactive", "--nologo",
   ], { cwd: root, encoding: "utf8", timeout, maxBuffer: 8 * 1024 * 1024 });
   if (result.error || result.status !== 0) {
-    console.error(result.stderr);
-    throw new Error(`Aspire ${args[0]} failed (exit ${result.status}): ${result.error?.message ?? result.stdout}`);
+    throw new Error(`Aspire ${args[0]} failed (${result.error?.message ?? `exit ${result.status}`}). Check the catalog with aspire describe --apphost catalog --format Table.`);
   }
   return result.stdout;
 }
 
-export function endpoints() {
-  const output = aspire(["describe", "--format", "Json"]);
+export function endpoints(output = aspire(["describe", "--format", "Json"])) {
   if (!output.trim()) throw new Error("No running catalog AppHost");
-  const { resources } = JSON.parse(output);
+  let resources;
+  try {
+    ({ resources } = JSON.parse(output));
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    throw new Error("Aspire describe returned invalid JSON. Inspect the catalog with aspire describe --apphost catalog --format Table.");
+  }
   if (!resources?.length) throw new Error("No running catalog AppHost");
   const result = {};
   for (const name of ["api", "inventory", "web"]) {

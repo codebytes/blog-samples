@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Testing" Version="13.6.4" />
+    <PackageReference Include="Aspire.Hosting.Testing" Version="17.0.0" />
     <ProjectReference Include="../../catalog/Catalog.AppHost/Catalog.AppHost.csproj" />
   </ItemGroup>
 

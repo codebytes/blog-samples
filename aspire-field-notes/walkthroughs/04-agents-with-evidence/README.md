@@ -5,7 +5,7 @@ Never share another session's checkout or stop unrelated AppHosts.
 
 ## Start the catalog
 
-Use Aspire CLI and AppHost SDK **13.6.4**. Run from `aspire-field-notes/`;
+Use the pinned Aspire CLI. Run from `aspire-field-notes/`;
 initialize the secret only if you have not completed the sample's setup.
 Stop only an earlier catalog run you own before starting this one.
 
@@ -27,7 +27,7 @@ inventory; JSON environment values can expose database connection credentials.
 You do not need to run **Load catalog** yourself first. Give the agent this task:
 
 ```text
-Work only in this sample's checkout. Use Aspire CLI 13.6.4 and select
+Work only in this sample's checkout. Use Aspire CLI 17.0.0 and select
 catalog/Catalog.AppHost/Catalog.AppHost.csproj explicitly.
 The catalog is running with Inventory__FaultEnabled=true.
 
@@ -126,33 +126,12 @@ discover resource commands with `aspire resource api --help --apphost "$apphost"
 
 ## Optional guidance setup
 
-Skip this if the agent already has Aspire guidance. Use the installed CLI;
-do not enable remote skill fetching or override `aspireSkillsVersion`.
-
-**Read before running:** `github` scopes skill files to the workspace, but
-`agent init` also registers user-level telemetry hooks for supported agents.
-`ASPIRE_CLI_TELEMETRY_OPTOUT=true` suppresses transmission while set; it does
-not prevent hook registration or disable later hooks. Accept those changes
-explicitly or use a disposable user profile.
+No agent configuration changes are needed for the exercise. To inspect the
+options in the installed CLI without changing the workspace or user profile:
 
 ```bash
-ASPIRE_CLI_TELEMETRY_OPTOUT=true aspire agent init \
-  --workspace-root "$PWD/catalog" \
-  --skill-locations github \
-  --skills aspire,aspire-orchestration,aspire-monitoring \
-  --mcp=false --non-interactive
+aspire agent init --help
 ```
 
-- Review generated `catalog/.github/skills/` before adoption; they are
-  ignored here.
-- `standard` also writes `~/.agents/skills`; `github` does not.
-- `--mcp=false` skips new MCP setup, not existing connections or deprecated
-  workspace configuration migrations.
-- Named skills avoid optional tooling selected by `--skills all`; deselecting
-  skills or locations is not a general uninstall.
-
-The installed CLI's help and this collection take precedence over historical
-repository guidance. Tagged 13.6.4 references:
-[locations](https://github.com/microsoft/aspire/blob/v13.6.4/src/Aspire.Cli/Agents/SkillLocation.cs),
-[setup](https://github.com/microsoft/aspire/blob/v13.6.4/src/Aspire.Cli/Commands/AgentInitCommand.cs),
-[user-level hooks](https://github.com/microsoft/aspire/blob/v13.6.4/src/Aspire.Cli/Agents/Hooks/TelemetryHookConfigurator.cs).
+CLI 17 no longer accepts the 13.6 `--skill-locations` option. Review the
+workspace and user-level changes before opting into agent setup or MCP.

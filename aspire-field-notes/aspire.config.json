@@ -1,0 +1,8 @@
+{
+  "appHost": {
+    "path": "catalog/Catalog.AppHost/Catalog.AppHost.csproj"
+  },
+  "features": {
+    "defaultWatchEnabled": false
+  }
+}

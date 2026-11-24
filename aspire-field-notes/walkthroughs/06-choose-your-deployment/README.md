@@ -47,14 +47,14 @@ Re-run the review after changing the generated Compose file.
 It does not fill `.env` with user secrets or resolve image placeholders. Treat
 environment-specific files produced by a future prepare/deploy step as sensitive.
 
-The output regenerated and reviewed with the pinned **13.6.4 integrations** contains these image choices:
+The output regenerated and reviewed with the pinned **17.0.0 integrations** contains these image choices:
 
 | Generated file | Image |
 | --- | --- |
 | `web.Dockerfile`, build stage | `node:22-slim` |
 | `web.Dockerfile`, static/proxy runtime | `mcr.microsoft.com/dotnet/nightly/yarp:2.3-preview` |
-| `docker-compose.yaml`, dashboard | `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6` |
-| `docker-compose.yaml`, PostgreSQL | `docker.io/library/postgres:18.3` |
+| `docker-compose.yaml`, dashboard | `mcr.microsoft.com/aspire/nightly/dashboard:17.0` |
+| `docker-compose.yaml`, PostgreSQL | `docker.io/library/postgres:18.6` |
 
 API, inventory, and web service images remain `${API_IMAGE}`,
 `${INVENTORY_IMAGE}`, and `${WEB_IMAGE}` placeholders. The nightly/preview
@@ -70,9 +70,7 @@ digest-pinned production image set. No images are pulled or built by this review
 | Lifecycle | `aspire start` / scoped `stop` | Reviewed publication only; applying it is a separate explicit decision |
 
 `AddDockerComposeEnvironment` is the supported target integration.
-`PublishAsStaticWebsite` dates from 13.3 behind `ASPIREJAVASCRIPT001` and is still
-experimental in 13.6; the diagnostic is acknowledged in the AppHost.
-`StripPrefix` defaults to `false`; the sample sets it explicitly to document that
+With `PublishAsStaticWebsite`, the sample sets `StripPrefix` to `false` to document that
 the API owns `/api`. Vite's development or preview server is not used as a
 production server.
 

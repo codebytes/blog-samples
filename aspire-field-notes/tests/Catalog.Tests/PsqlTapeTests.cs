@@ -8,7 +8,8 @@ public sealed class PsqlTapeTests
     private static async Task<string> ReadTape(string name)
     {
         await using var app = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Catalog_AppHost>();
-        return await File.ReadAllTextAsync(Path.Combine(app.AppHostDirectory, "..", "..", "terminals", name));
+        var source = await File.ReadAllTextAsync(Path.Combine(app.AppHostDirectory, "..", "..", "terminals", name));
+        return source.ReplaceLineEndings("\n");
     }
 
     [Theory]
@@ -91,7 +92,7 @@ public sealed class PsqlTapeTests
             _ => "catalogdb_mug,notebook,sticker_3_PASS"
         };
         var tape = new TapeParser().Parse(
-            "Set WaitTimeout 1s\nSet TypingSpeed 0\nType \"PS1='CATALOG_READY> '\"\nEnter\n" +
+            "Set WaitTimeout 5s\nSet TypingSpeed 0\nType \"PS1='CATALOG_READY> '\"\nEnter\n" +
             Simulate(positive, "catalogdb_mug,notebook,sticker_3_PASS") + Simulate(second, output));
         var player = new TapePlayer();
         var options = new TapePlaybackOptions { DefaultShell = "bash" };
